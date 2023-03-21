@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "land_core",
+    "land_gui",
+    "land_libs"
+]

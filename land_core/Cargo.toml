@@ -1,0 +1,19 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+krpc_mars = { git = "https://github.com/Cahu/krpc-mars" }
+failure = "0.1.8"
+land_libs = { version = "0.1.0", path = "../land_libs" }
+
+protoc-rust = "2.0"
+
+log = "0.4"
+pretty_env_logger = "0.4"
+
+[[bin]]
+name = "testing"
