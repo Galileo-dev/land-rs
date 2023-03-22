@@ -12,7 +12,7 @@ mod cam;
 use cam::{pan_orbit_camera, PanOrbitCamera};
 
 mod gestures;
-use gestures::double_click_system;
+// use gestures::double_click_system;
 
 fn main() {
     App::new()
@@ -35,7 +35,7 @@ fn main() {
         // setup orbital camera
         .add_system(pan_orbit_camera)
         //setup gesture detection
-        .add_system(double_click_system)
+        // .add_system(double_click_system)
         // setup scene
         .add_startup_system(setup)
         // loggin
