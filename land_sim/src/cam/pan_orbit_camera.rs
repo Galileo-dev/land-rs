@@ -4,7 +4,7 @@ use bevy::render::camera::Projection;
 
 // ANCHOR: example
 /// Tags an entity as capable of panning and orbiting.
-#[derive(Component)]
+#[derive(Component, Clone, Debug)]
 pub struct PanOrbitCamera {
     /// The "focus point" to orbit around. It is automatically updated when panning the camera
     pub focus: Vec3,
@@ -12,13 +12,33 @@ pub struct PanOrbitCamera {
     pub upside_down: bool,
 }
 
-impl Default for PanOrbitCamera {
-    fn default() -> Self {
-        PanOrbitCamera {
-            focus: Vec3::ZERO,
-            radius: 5.0,
-            upside_down: false,
+#[derive(Component, Clone)]
+pub struct PanOrbitCameraDefaults {
+    /// The "focus point" to orbit around. It is automatically updated when panning the camera
+    focus: Vec3,
+    radius: f32,
+    upside_down: bool,
+}
+
+impl From<&PanOrbitCameraDefaults> for PanOrbitCamera {
+    fn from(defaults: &PanOrbitCameraDefaults) -> Self {
+        Self {
+            focus: defaults.focus,
+            radius: defaults.radius,
+            upside_down: defaults.upside_down,
         }
+    }
+}
+
+pub struct ResetCameraEvent;
+
+pub fn reset_camera(
+    mut query: Query<(&mut PanOrbitCamera, &PanOrbitCameraDefaults)>,
+    mut ev_reset: EventReader<ResetCameraEvent>,
+) {
+    for (mut component, mut defaults) in query.iter_mut() {
+        let defaults_ref: &PanOrbitCameraDefaults = &defaults.clone();
+        *component = PanOrbitCamera::from(defaults_ref);
     }
 }
 
@@ -120,4 +140,15 @@ fn get_primary_window_size(windows: &Query<&mut Window>) -> Vec2 {
     let window = windows.single();
     let window = Vec2::new(window.width() as f32, window.height() as f32);
     window
+}
+
+// create a plugin
+pub struct PanOrbitCameraPlugin;
+
+impl Plugin for PanOrbitCameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<ResetCameraEvent>()
+            .add_system(reset_camera)
+            .add_system(pan_orbit_camera);
+    }
 }

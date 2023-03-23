@@ -5,8 +5,8 @@ use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
 
-use ui;
 use space_center;
+use ui;
 
 use std::fmt;
 

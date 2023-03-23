@@ -2,6 +2,16 @@
 
 members = [
     "land_core",
-    "land_gui",
-    "land_libs"
+    "land_libs",
+    "land_sim",
 ]
+
+resolver = "2" # Important! wgpu/Bevy needs this!
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3

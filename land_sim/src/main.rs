@@ -1,18 +1,29 @@
-//! Showcases wireframe rendering.
-
-use bevy::app::PluginGroupBuilder;
-use bevy::log::LogPlugin;
 use bevy::{
-    pbr::wireframe::{Wireframe, WireframeConfig, WireframePlugin},
+    log::LogPlugin,
     prelude::*,
-    render::{camera::Camera, render_resource::WgpuFeatures, settings::WgpuSettings, RenderPlugin},
+    render::{
+        settings::{WgpuFeatures, WgpuSettings},
+        RenderPlugin,
+    },
 };
+use bevy_rapier3d::prelude::*;
 
-mod cam;
-use cam::{pan_orbit_camera, PanOrbitCamera};
+pub mod cam;
+use cam::{pan_orbit_camera, PanOrbitCamera, PanOrbitCameraPlugin};
 
-mod gestures;
-// use gestures::double_click_system;
+pub mod gestures;
+use gestures::GesturePlugin;
+
+pub mod event_mapper;
+use event_mapper::EventMapperPlugin;
+use land_sim::cam::PanOrbitCameraDefaults;
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+enum AppState {
+    #[default]
+    Menu,
+    InGame,
+}
 
 fn main() {
     App::new()
@@ -30,67 +41,55 @@ fn main() {
                     filter: "info,wgpu_core=error,wgpu_hal=error,land_sim=debug".to_string(),
                 }),
         )
-        // setup wireframe rendering
-        .add_plugin(WireframePlugin)
-        // setup orbital camera
-        .add_system(pan_orbit_camera)
-        //setup gesture detection
-        // .add_system(double_click_system)
-        // setup scene
-        .add_startup_system(setup)
-        // loggin
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(GesturePlugin)
+        .add_plugin(PanOrbitCameraPlugin)
+        .add_plugin(EventMapperPlugin)
+        .add_startup_system(setup_graphics)
+        .add_startup_system(setup_camera)
+        .add_startup_system(setup_physics)
         .run();
 }
 
 /// set up a simple 3D scene
-fn setup(
-    mut commands: Commands,
-    mut wireframe_config: ResMut<WireframeConfig>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    debug!("Setting up scene...");
+fn setup_graphics(mut commands: Commands) {}
 
-    // To draw the wireframe on all entities, set this to 'true'
-    wireframe_config.global = true;
-    // plane
-    // this is going to be a cube that is as flat as a pancake.
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Box::new(10.0, 0.1, 10.0).into()),
-        material: materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0).into()),
-        ..default()
-    });
-    // cube
-    commands.spawn((PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    },));
-    // light
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
-    // camera
-    spawn_camera(commands);
-}
-
-/// Spawn a camera like this
-fn spawn_camera(mut commands: Commands) {
+fn setup_camera(mut commands: Commands) {
     let translation = Vec3::new(-2.0, 2.5, 5.0);
     let radius = translation.length();
 
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
-            ..Default::default()
-        },
-        PanOrbitCamera {
-            radius,
-            ..Default::default()
-        },
-    ));
+    let defaults = PanOrbitCameraDefaults {
+        focus: Vec3::ZERO,
+        radius,
+        upside_down: false,
+    };
+    let component = PanOrbitCamera::from(&defaults);
+    let entity = commands.spawn().insert(component).id();
+
+    commands.entity(entity).insert(defaults);
+
+    // commands.spawn((
+    //     Camera3dBundle {
+    //         transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
+    //         ..Default::default()
+    //     },
+    //     PanOrbitCamera {
+    // ));
+}
+
+fn setup_physics(mut commands: Commands) {
+    /* Create the ground. */
+    commands
+        .spawn(Collider::cuboid(100.0, 0.1, 100.0))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, -2.0, 0.0)));
+
+    /* Create the bouncing ball. */
+    commands
+        .spawn(RigidBody::Dynamic)
+        .insert(Collider::ball(0.5))
+        .insert(Restitution::coefficient(0.7))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, 4.0, 0.0)));
 }
 
 fn spawn_rocket(mut commands: Commands) {
