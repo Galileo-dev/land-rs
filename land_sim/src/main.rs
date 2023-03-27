@@ -16,6 +16,7 @@ use gestures::GesturePlugin;
 
 pub mod event_mapper;
 use event_mapper::EventMapperPlugin;
+use land_sim::rocket::setup_rocket;
 use std::convert::From;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -49,6 +50,7 @@ fn main() {
         .add_startup_system(setup_graphics)
         .add_startup_system(setup_camera)
         .add_startup_system(setup_physics)
+        .add_startup_system(setup_rocket)
         .run();
 }
 
@@ -84,14 +86,4 @@ fn setup_physics(mut commands: Commands) {
         .insert(Collider::ball(0.5))
         .insert(Restitution::coefficient(0.7))
         .insert(TransformBundle::from(Transform::from_xyz(0.0, 4.0, 0.0)));
-}
-
-fn spawn_rocket(mut commands: Commands) {
-
-    // a rocket is made up of multiple parts
-    // 1. the rocket body. this has no use other than to be a parent to the other parts
-    // 2. the rocket nose. this is the part that points forward
-    // 3. the rocket engine exhaust. this is the part that points backwards and is the only part that moves
-
-    // the rocket body
 }
