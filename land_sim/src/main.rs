@@ -9,14 +9,14 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 
 pub mod cam;
-use cam::{pan_orbit_camera, PanOrbitCamera, PanOrbitCameraPlugin};
+use cam::{PanOrbitCamera, PanOrbitCameraDefaults, PanOrbitCameraPlugin};
 
 pub mod gestures;
 use gestures::GesturePlugin;
 
 pub mod event_mapper;
 use event_mapper::EventMapperPlugin;
-use land_sim::cam::PanOrbitCameraDefaults;
+use std::convert::From;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum AppState {
@@ -64,18 +64,16 @@ fn setup_camera(mut commands: Commands) {
         radius,
         upside_down: false,
     };
+
     let component = PanOrbitCamera::from(&defaults);
-    let entity = commands.spawn().insert(component).id();
 
-    commands.entity(entity).insert(defaults);
-
-    // commands.spawn((
-    //     Camera3dBundle {
-    //         transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
-    //         ..Default::default()
-    //     },
-    //     PanOrbitCamera {
-    // ));
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
+            ..Default::default()
+        },
+        component,
+    ));
 }
 
 fn setup_physics(mut commands: Commands) {

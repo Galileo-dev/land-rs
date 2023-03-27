@@ -25,6 +25,6 @@ pub struct EventMapperPlugin;
 
 impl Plugin for EventMapperPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(double_click_mapper);
+        // app.add_system(double_click_mapper);
     }
 }
