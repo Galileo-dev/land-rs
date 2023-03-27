@@ -40,7 +40,7 @@ pub fn double_click_system(
     ])) {
         let now = time.elapsed();
         let elapsed = now - state.last_click_time;
-        if elapsed < Duration::from_secs(1) {
+        if elapsed < Duration::from_millis(500) {
             debug!("Double click!");
 
             let button_pressed = match mouse_button_input.get_pressed().next() {
