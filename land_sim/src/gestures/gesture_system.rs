@@ -54,7 +54,7 @@ pub fn double_click_system(
                 event: GestureState::DoubleClick,
                 button: button_pressed,
             });
-            state.cooldown.set_duration(Duration::from_secs(2));
+            state.cooldown.set_duration(Duration::from_millis(500));
             state.cooldown.reset();
         }
         state.last_click_time = now;

@@ -1,6 +1,7 @@
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::render::camera::Projection;
+use bevy_rapier3d::parry::query;
 // ANCHOR: example
 /// Tags an entity as capable of panning and orbiting.
 #[derive(Component, Clone, Debug)]
@@ -11,20 +12,24 @@ pub struct PanOrbitCamera {
     pub upside_down: bool,
 }
 
-#[derive(Component, Clone)]
+#[derive(Resource)]
 pub struct PanOrbitCameraDefaults {
     /// The "focus point" to orbit around. It is automatically updated when panning the camera
-    pub focus: Vec3,
-    pub radius: f32,
-    pub upside_down: bool,
+    pan_orbit: PanOrbitCamera,
+    transform: Transform,
+    projection: Projection,
 }
 
-impl From<&PanOrbitCameraDefaults> for PanOrbitCamera {
-    fn from(defaults: &PanOrbitCameraDefaults) -> Self {
+impl Default for PanOrbitCameraDefaults {
+    fn default() -> Self {
         Self {
-            focus: defaults.focus,
-            radius: defaults.radius,
-            upside_down: defaults.upside_down,
+            pan_orbit: PanOrbitCamera {
+                focus: Vec3::ZERO,
+                radius: 5.0,
+                upside_down: false,
+            },
+            transform: Transform::default(),
+            projection: Projection::default(),
         }
     }
 }
@@ -32,12 +37,29 @@ impl From<&PanOrbitCameraDefaults> for PanOrbitCamera {
 pub struct ResetCameraEvent;
 
 pub fn reset_camera(
-    mut query: Query<(&mut PanOrbitCamera, &PanOrbitCameraDefaults)>,
+    mut query: Query<(&mut PanOrbitCamera, &mut Transform, &mut Projection)>,
+    mut default_storage: ResMut<PanOrbitCameraDefaults>,
     mut ev_reset: EventReader<ResetCameraEvent>,
 ) {
-    for (mut component, mut defaults) in query.iter_mut() {
-        let defaults_ref: &PanOrbitCameraDefaults = &defaults.clone();
-        *component = PanOrbitCamera::from(defaults_ref);
+    for ev in ev_reset.iter() {
+        for (mut pan_orbit, mut transform, projection) in query.iter_mut() {
+            *pan_orbit = default_storage.pan_orbit.clone();
+            *transform = default_storage.transform.clone();
+        }
+    }
+}
+
+// first we need to store the defaults when the component is added
+pub fn set_default(
+    mut query: Query<(&mut PanOrbitCamera, &mut Transform, &Projection), Added<PanOrbitCamera>>,
+    mut default_storage: ResMut<PanOrbitCameraDefaults>,
+) {
+    for (mut pan_orbit, mut transform, projection) in query.iter_mut() {
+        *default_storage = PanOrbitCameraDefaults {
+            pan_orbit: pan_orbit.clone(),
+            transform: transform.clone(),
+            projection: projection.clone(),
+        }
     }
 }
 
@@ -51,7 +73,7 @@ pub fn pan_orbit_camera(
 ) {
     // change input mapping for orbit and panning here
     let orbit_button = MouseButton::Left;
-    let pan_button = MouseButton::Right;
+    let pan_button = MouseButton::Middle;
 
     let mut pan = Vec2::ZERO;
     let mut rotation_move = Vec2::ZERO;
@@ -115,7 +137,7 @@ pub fn pan_orbit_camera(
             pan_orbit.focus += translation;
         } else if scroll.abs() > 0.0 {
             any = true;
-            pan_orbit.radius -= scroll * pan_orbit.radius * 0.2;
+            pan_orbit.radius -= scroll * pan_orbit.radius * 0.02;
             // dont allow zoom to reach zero or you get stuck
             pan_orbit.radius = f32::max(pan_orbit.radius, 0.05);
         }
@@ -141,13 +163,21 @@ fn get_primary_window_size(windows: &Query<&mut Window>) -> Vec2 {
     window
 }
 
+fn print_camera_entities(query: Query<Entity, With<PanOrbitCamera>>) {
+    for entity in query.iter() {
+        println!("Found camera entity: {:?}", entity);
+    }
+}
+
 // create a plugin
 pub struct PanOrbitCameraPlugin;
 
 impl Plugin for PanOrbitCameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<ResetCameraEvent>()
+            .insert_resource(PanOrbitCameraDefaults::default())
             .add_system(reset_camera)
-            .add_system(pan_orbit_camera);
+            .add_system(pan_orbit_camera)
+            .add_system(set_default);
     }
 }

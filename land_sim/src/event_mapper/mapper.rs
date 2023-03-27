@@ -11,6 +11,7 @@ fn double_click_mapper(
         match ev.event {
             GestureState::DoubleClick => match ev.button {
                 MouseButton::Middle => {
+                    debug!("Reset camera event sent");
                     reset_camera_events.send(ResetCameraEvent);
                 }
                 MouseButton::Left => {}
@@ -25,6 +26,6 @@ pub struct EventMapperPlugin;
 
 impl Plugin for EventMapperPlugin {
     fn build(&self, app: &mut App) {
-        // app.add_system(double_click_mapper);
+        app.add_system(double_click_mapper);
     }
 }

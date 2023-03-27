@@ -1,8 +1,6 @@
 [workspace]
 
 members = [
-    "land_core",
-    "land_libs",
     "land_sim",
 ]
 

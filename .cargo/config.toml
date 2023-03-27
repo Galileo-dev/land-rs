@@ -20,7 +20,7 @@ rustflags = [
 rustflags = [
     "-C",
     "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld",
-    "-Zshare-generics=y",
+    # "-Zshare-generics=y",
 ]
 
 [target.x86_64-pc-windows-msvc]
