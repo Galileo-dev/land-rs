@@ -1,9 +1,25 @@
+// ====================================================================
+// Purpose of this file is to provide a plugin that will display the FPS
+// and frame time in the top left corner of the screen. This is useful
+// for debugging performance issues. This plugin is not intended to be
+// used in production. It is only intended to be used in development.
+// ===================================================================
+
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
 
-// pub fn diagnostics_system() {}
+// A unit struct to help identify the FPS UI component, since there may be many Text components
+#[derive(Component)]
+struct FpsText;
+
+#[derive(Component)]
+struct FrameTimeText;
+
+// A unit struct to help identify the color-changing Text component
+#[derive(Component)]
+struct ColorText;
 
 fn setup_diagnostics(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
@@ -103,17 +119,6 @@ fn update_frame_time(
         }
     }
 }
-
-// A unit struct to help identify the FPS UI component, since there may be many Text components
-#[derive(Component)]
-struct FpsText;
-
-#[derive(Component)]
-struct FrameTimeText;
-
-// A unit struct to help identify the color-changing Text component
-#[derive(Component)]
-struct ColorText;
 
 pub struct DiagnosticsPlugin;
 

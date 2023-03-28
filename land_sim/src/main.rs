@@ -10,17 +10,16 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 
 pub mod cam;
-use cam::{PanOrbitCamera, PanOrbitCameraDefaults, PanOrbitCameraPlugin};
+use cam::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 pub mod gestures;
 use gestures::GesturePlugin;
 
 pub mod event_mapper;
 use event_mapper::EventMapperPlugin;
-use land_sim::rocket::setup_rocket;
-use std::convert::From;
 
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+pub mod rocket;
+use rocket::{spawn_rocket, RocketControlPlugin};
 
 pub mod utils;
 use utils::DiagnosticsPlugin;
@@ -62,15 +61,12 @@ fn main() {
         .add_plugin(PanOrbitCameraPlugin)
         .add_plugin(EventMapperPlugin)
         .add_plugin(DiagnosticsPlugin)
-        .add_startup_system(setup_graphics)
+        .add_plugin(RocketControlPlugin)
         .add_startup_system(setup_camera)
         .add_startup_system(setup_physics)
-        .add_startup_system(setup_rocket)
+        .add_startup_system(spawn_rocket)
         .run();
 }
-
-/// set up a simple 3D scene
-fn setup_graphics(mut commands: Commands) {}
 
 fn setup_camera(mut commands: Commands) {
     let translation = Vec3::new(-2.0, 2.5, 5.0);

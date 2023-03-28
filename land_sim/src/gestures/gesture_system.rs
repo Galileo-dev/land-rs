@@ -1,8 +1,5 @@
-// use bevy::{app::App, input::mouse::MouseButton, prelude::*};
-
+use bevy::prelude::*;
 use std::time::Duration;
-
-use bevy::{ecs::system::SystemParam, prelude::*};
 
 #[derive(Resource)]
 pub struct GestureResource {
@@ -60,6 +57,7 @@ pub fn double_click_system(
         state.last_click_time = now;
     }
 }
+
 pub struct GesturePlugin;
 
 impl Plugin for GesturePlugin {

@@ -1,8 +1,7 @@
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::render::camera::Projection;
-use bevy_rapier3d::parry::query;
-// ANCHOR: example
+
 /// Tags an entity as capable of panning and orbiting.
 #[derive(Component, Clone, Debug)]
 pub struct PanOrbitCamera {
@@ -163,12 +162,6 @@ fn get_primary_window_size(windows: &Query<&mut Window>) -> Vec2 {
     let window = windows.single();
     let window = Vec2::new(window.width() as f32, window.height() as f32);
     window
-}
-
-fn print_camera_entities(query: Query<Entity, With<PanOrbitCamera>>) {
-    for entity in query.iter() {
-        println!("Found camera entity: {:?}", entity);
-    }
 }
 
 // create a plugin
