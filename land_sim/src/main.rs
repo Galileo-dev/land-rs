@@ -5,6 +5,7 @@ use bevy::{
         settings::{WgpuFeatures, WgpuSettings},
         RenderPlugin,
     },
+    window::PresentMode,
 };
 use bevy_rapier3d::prelude::*;
 
@@ -18,6 +19,11 @@ pub mod event_mapper;
 use event_mapper::EventMapperPlugin;
 use land_sim::rocket::setup_rocket;
 use std::convert::From;
+
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+
+pub mod utils;
+use utils::DiagnosticsPlugin;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum AppState {
@@ -40,6 +46,14 @@ fn main() {
                 .set(LogPlugin {
                     level: bevy::log::Level::DEBUG,
                     filter: "info,wgpu_core=error,wgpu_hal=error,land_sim=debug".to_string(),
+                })
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Land Sim".to_string(),
+                        present_mode: PresentMode::AutoVsync,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }),
         )
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
@@ -47,6 +61,7 @@ fn main() {
         .add_plugin(GesturePlugin)
         .add_plugin(PanOrbitCameraPlugin)
         .add_plugin(EventMapperPlugin)
+        .add_plugin(DiagnosticsPlugin)
         .add_startup_system(setup_graphics)
         .add_startup_system(setup_camera)
         .add_startup_system(setup_physics)
