@@ -7,6 +7,7 @@ use bevy::{
     },
     window::PresentMode,
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 
 pub mod cam;
@@ -55,6 +56,7 @@ fn main() {
                     ..Default::default()
                 }),
         )
+        .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(GesturePlugin)
