@@ -1,12 +1,17 @@
-use bevy::{prelude::*, reflect::erased_serde::__private::serde::__private::de};
+use bevy::{
+    prelude::*, reflect::erased_serde::__private::serde::__private::de, transform::commands,
+};
+use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::rapier::prelude::ImpulseJointSet;
 use bevy_rapier3d::{
-    prelude::{ImpulseJoint, SphericalJoint},
+    prelude::{ImpulseJoint, RapierConfiguration, RapierImpulseJointHandle, SphericalJoint},
     rapier::prelude::JointMotor,
 };
 
 use crate::rocket::object::Rocket;
 
 use super::object::RocketBundle;
+use std::collections::HashSet;
 
 // system to control the rocket with the keyboard
 // shift : thrust +
@@ -60,69 +65,103 @@ impl Default for RocketControl {
 
 const EPSILON: f32 = 0.0001;
 
-pub fn keyboard_control_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<&mut RocketControl>,
-) {
-    for mut control in query.iter_mut() {
-        match () {
-            _ if keyboard_input.pressed(KeyCode::LShift) && control.thrust < MAX_THRUST => {
-                control.thrust += 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::LControl)
-                && control.thrust > MIN_THRUST + EPSILON =>
-            {
-                control.thrust -= 0.1;
-                debug!("thrust: {}", control.thrust);
-            }
+#[derive(Resource)]
+pub struct KeyboardState {
+    keys_pressed: HashSet<KeyCode>,
+}
 
-            _ if keyboard_input.pressed(KeyCode::W)
-                && control.pitch < MAX_PITCH
-                && control.pitch > MIN_PITCH =>
-            {
-                control.pitch += 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::S)
-                && control.pitch < MAX_PITCH
-                && control.pitch > MIN_PITCH =>
-            {
-                control.pitch -= 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::A)
-                && control.yaw < MAX_YAW
-                && control.yaw > MIN_YAW =>
-            {
-                control.yaw += 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::D)
-                && control.yaw < MAX_YAW
-                && control.yaw > MIN_YAW =>
-            {
-                control.yaw -= 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::Q)
-                && control.roll < MAX_ROLL
-                && control.roll > MIN_ROLL =>
-            {
-                control.roll += 0.1;
-            }
-            _ if keyboard_input.pressed(KeyCode::E)
-                && control.roll < MAX_ROLL
-                && control.roll > MIN_ROLL =>
-            {
-                control.roll -= 0.1;
-            }
-            _ => {}
+impl Default for KeyboardState {
+    fn default() -> Self {
+        Self {
+            keys_pressed: HashSet::new(),
         }
     }
 }
 
-pub fn update_control_system(mut query: Query<&mut RocketControl>) {
+pub fn keyboard_control_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<&mut RocketControl>,
+    mut keyboard_state: ResMut<KeyboardState>,
+) {
+    // Update the set of currently pressed keys
+    keyboard_state.keys_pressed.clear();
+    for key_code in keyboard_input.get_pressed() {
+        keyboard_state.keys_pressed.insert(*key_code);
+    }
+
+    // Update the control values based on the pressed keys
+    for mut control in query.iter_mut() {
+        if keyboard_state.keys_pressed.contains(&KeyCode::LShift) && control.thrust < MAX_THRUST {
+            control.thrust += 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::LControl)
+            && control.thrust > MIN_THRUST + EPSILON
+        {
+            control.thrust -= 0.1;
+            debug!("thrust: {}", control.thrust);
+        }
+
+        if keyboard_state.keys_pressed.contains(&KeyCode::W)
+            && control.pitch < MAX_PITCH
+            && control.pitch > MIN_PITCH
+        {
+            control.pitch += 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::S)
+            && control.pitch < MAX_PITCH
+            && control.pitch > MIN_PITCH
+        {
+            control.pitch -= 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::A)
+            && control.yaw < MAX_YAW
+            && control.yaw > MIN_YAW
+        {
+            control.yaw += 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::D)
+            && control.yaw < MAX_YAW
+            && control.yaw > MIN_YAW
+        {
+            control.yaw -= 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::Q)
+            && control.roll < MAX_ROLL
+            && control.roll > MIN_ROLL
+        {
+            control.roll += 0.1;
+        }
+        if keyboard_state.keys_pressed.contains(&KeyCode::E)
+            && control.roll < MAX_ROLL
+            && control.roll > MIN_ROLL
+        {
+            control.roll -= 0.1;
+        }
+    }
+}
+pub fn update_control_system(
+    mut query: Query<&mut RocketControl>,
+    mut joints: Query<&mut RapierImpulseJointHandle>,
+) {
     // gradually reduce the control values back to zero except for thrust
     for mut control in query.iter_mut() {
         control.pitch *= 0.9;
         control.yaw *= 0.9;
         control.roll *= 0.9;
+    }
+
+    // update the joints
+    // for mut joint in joints.iter_mut() {
+    //     let impulse_joint = joint.0;
+    //     impulse_joint.
+    //     // let mut motor = joint.motor_mut();
+    //     // motor.set_desired_velocity(10.0);
+    // }
+}
+
+fn update_motor(mut query: Query<&mut RapierImpulseJointHandle>) {
+    for mut joint in query.iter_mut() {
+        let impulse_joint = joint.0;
     }
 }
 
@@ -138,8 +177,9 @@ pub struct RocketControlPlugin;
 
 impl Plugin for RocketControlPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(keyboard_control_system);
-        app.add_system(update_control_system);
+        app.insert_resource(KeyboardState::default())
+            .add_system(keyboard_control_system)
+            .add_system(update_control_system);
         // .add_system(update_motor_system);
     }
 }
