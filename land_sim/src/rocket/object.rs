@@ -6,8 +6,11 @@ use bevy_rapier3d::{
 
 use super::control::RocketControl;
 
+#[derive(Component)]
+pub struct Rocket;
+
 #[derive(Bundle)]
-struct RocketBundle {
+pub struct RocketBundle {
     body: BodyBundle,
     nozzle: NozzleBundle,
     #[bundle(ignore)]
@@ -105,5 +108,6 @@ pub fn spawn_rocket(mut commands: Commands) {
             let nozzle = parent.spawn(rocket_bundle.nozzle).id();
             // spawn the joint
             parent.spawn(ImpulseJoint::new(nozzle, rocket_bundle.joint));
-        });
+        })
+        .insert(Rocket);
 }

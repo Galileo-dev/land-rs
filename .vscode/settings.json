@@ -1,0 +1,3 @@
+{
+  "rust-analyzer.linkedProjects": [".\\land_sim\\Cargo.toml"]
+}

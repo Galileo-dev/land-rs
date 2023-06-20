@@ -19,7 +19,7 @@ pub mod event_mapper;
 use event_mapper::EventMapperPlugin;
 
 pub mod rocket;
-use rocket::{spawn_rocket, RocketControlPlugin};
+use rocket::{spawn_rocket, ControlStateUIPlugin, RocketControlPlugin};
 
 pub mod utils;
 use utils::DiagnosticsPlugin;
@@ -61,6 +61,7 @@ fn main() {
         .add_plugin(PanOrbitCameraPlugin)
         .add_plugin(EventMapperPlugin)
         .add_plugin(DiagnosticsPlugin)
+        .add_plugin(ControlStateUIPlugin)
         .add_plugin(RocketControlPlugin)
         .add_startup_system(setup_camera)
         .add_startup_system(setup_physics)
