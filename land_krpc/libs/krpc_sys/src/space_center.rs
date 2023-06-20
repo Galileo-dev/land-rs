@@ -5,8 +5,8 @@ use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
 
-use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::HashMap;
 
 use std::fmt;
 
