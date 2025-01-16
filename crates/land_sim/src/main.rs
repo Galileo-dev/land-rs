@@ -1,36 +1,14 @@
-use bevy::{
-    log::LogPlugin,
-    prelude::*,
-    render::{
-        settings::{RenderCreation, WgpuFeatures, WgpuSettings},
-        RenderPlugin,
-    },
-    window::PresentMode,
-};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier3d::prelude::*;
-
+pub mod error;
 pub mod cam;
-use cam::{PanOrbitCamera, PanOrbitCameraPlugin};
-
 pub mod gestures;
-use gestures::GesturePlugin;
-
 pub mod event_mapper;
-use event_mapper::EventMapperPlugin;
-
 pub mod rocket;
-use rocket::{spawn_rocket, ControlStateUIPlugin, RocketControlPlugin};
-
 pub mod utils;
-use utils::DiagnosticsPlugin;
+pub mod prelude;
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
-enum AppState {
-    #[default]
-    Menu,
-    InGame,
-}
+use bevy::{log::LogPlugin, render::{settings::{RenderCreation, WgpuFeatures, WgpuSettings}, RenderPlugin}, window::PresentMode};
+use cam::PanOrbitCamera;
+use prelude::*;
 
 fn main() {
     App::new()
@@ -65,14 +43,13 @@ fn main() {
         .add_plugins((
 
             // Custom plugins
-            GesturePlugin,
-            PanOrbitCameraPlugin,
-            EventMapperPlugin,
-            DiagnosticsPlugin,
-            ControlStateUIPlugin,
-            RocketControlPlugin,
+            crate::cam::plugin,
+            crate::event_mapper::plugin,
+            crate::gestures::plugin,
+            crate::utils::diagnostics::plugin,
+            crate::rocket::plugin,
         ))
-        .add_systems(Startup, (setup_camera, setup_physics, spawn_rocket))
+        .add_systems(Startup, (setup_camera, setup_physics ))
         .run();
 }
 

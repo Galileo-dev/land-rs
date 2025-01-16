@@ -2,7 +2,10 @@ mod object;
 pub use object::spawn_rocket;
 
 mod control;
-pub use control::RocketControlPlugin;
+pub use control::RocketControl;
 
-mod control_state_ui;
-pub use control_state_ui::ControlStateUIPlugin;
+use crate::prelude::*;
+
+pub(super) fn plugin(app: &mut App) {
+    app.add_plugins(control::RocketControlPlugin);
+}

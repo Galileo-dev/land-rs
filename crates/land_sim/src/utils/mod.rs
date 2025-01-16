@@ -1,2 +1,2 @@
-mod diagnostics;
-pub use diagnostics::DiagnosticsPlugin;
+pub(super) mod diagnostics;
+

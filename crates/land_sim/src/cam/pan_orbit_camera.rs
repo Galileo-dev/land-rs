@@ -165,13 +165,8 @@ fn get_primary_window_size(windows: &Query<&mut Window>) -> Vec2 {
     window
 }
 
-// create a plugin
-pub struct PanOrbitCameraPlugin;
-
-impl Plugin for PanOrbitCameraPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<ResetCameraEvent>()
-            .insert_resource(PanOrbitCameraDefaults::default())
-            .add_systems(Update, (reset_camera, pan_orbit_camera, set_default));
-    }
+pub fn plugin(app: &mut App) {
+    app.add_event::<ResetCameraEvent>()
+        .insert_resource(PanOrbitCameraDefaults::default())
+        .add_systems(Update, (reset_camera, pan_orbit_camera, set_default));
 }

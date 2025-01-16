@@ -1,9 +1,9 @@
-use bevy::prelude::*;
+use crate::prelude::*;
 
 use crate::cam::ResetCameraEvent;
 use crate::gestures::{GestureEvent, GestureState};
 
-fn double_click_mapper(
+pub(super) fn mapper(
     mut double_click_events: EventReader<GestureEvent>,
     mut reset_camera_events: EventWriter<ResetCameraEvent>,
 ) {
@@ -21,13 +21,5 @@ fn double_click_mapper(
                 MouseButton::Other(_) => {}
             },
         }
-    }
-}
-
-pub struct EventMapperPlugin;
-
-impl Plugin for EventMapperPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, double_click_mapper);
     }
 }
