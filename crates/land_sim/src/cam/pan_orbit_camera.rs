@@ -33,6 +33,7 @@ impl Default for PanOrbitCameraDefaults {
     }
 }
 
+#[derive(Event)]
 pub struct ResetCameraEvent;
 
 pub fn reset_camera(
@@ -40,7 +41,7 @@ pub fn reset_camera(
     mut default_storage: ResMut<PanOrbitCameraDefaults>,
     mut ev_reset: EventReader<ResetCameraEvent>,
 ) {
-    for ev in ev_reset.iter() {
+    for ev in ev_reset.read() {
         for (mut pan_orbit, mut transform, projection) in query.iter_mut() {
             *pan_orbit = default_storage.pan_orbit.clone();
             *transform = default_storage.transform.clone();
@@ -67,7 +68,7 @@ pub fn pan_orbit_camera(
     windows: Query<&mut Window>,
     mut ev_motion: EventReader<MouseMotion>,
     mut ev_scroll: EventReader<MouseWheel>,
-    input_mouse: Res<Input<MouseButton>>,
+    input_mouse: Res<ButtonInput<MouseButton>>,
     mut query: Query<(&mut PanOrbitCamera, &mut Transform, &Projection)>,
 ) {
     // change input mapping for orbit and panning here
@@ -80,16 +81,16 @@ pub fn pan_orbit_camera(
     let mut orbit_button_changed = false;
 
     if input_mouse.pressed(orbit_button) {
-        for ev in ev_motion.iter() {
+        for ev in ev_motion.read() {
             rotation_move += ev.delta;
         }
     } else if input_mouse.pressed(pan_button) {
         // Pan only if we're not rotating at the moment
-        for ev in ev_motion.iter() {
+        for ev in ev_motion.read() {
             pan += ev.delta;
         }
     }
-    for ev in ev_scroll.iter() {
+    for ev in ev_scroll.read() {
         scroll += ev.y;
     }
     if input_mouse.just_released(orbit_button) || input_mouse.just_pressed(orbit_button) {
@@ -171,8 +172,6 @@ impl Plugin for PanOrbitCameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<ResetCameraEvent>()
             .insert_resource(PanOrbitCameraDefaults::default())
-            .add_system(reset_camera)
-            .add_system(pan_orbit_camera)
-            .add_system(set_default);
+            .add_systems(Update, (reset_camera, pan_orbit_camera, set_default));
     }
 }

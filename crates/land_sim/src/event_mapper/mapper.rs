@@ -7,7 +7,7 @@ fn double_click_mapper(
     mut double_click_events: EventReader<GestureEvent>,
     mut reset_camera_events: EventWriter<ResetCameraEvent>,
 ) {
-    for ev in double_click_events.iter() {
+    for ev in double_click_events.read() {
         match ev.event {
             GestureState::DoubleClick => match ev.button {
                 MouseButton::Middle => {
@@ -16,6 +16,8 @@ fn double_click_mapper(
                 }
                 MouseButton::Left => {}
                 MouseButton::Right => {}
+                MouseButton::Back => {}
+                MouseButton::Forward => {}
                 MouseButton::Other(_) => {}
             },
         }
@@ -26,6 +28,6 @@ pub struct EventMapperPlugin;
 
 impl Plugin for EventMapperPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(double_click_mapper);
+        app.add_systems(Update, double_click_mapper);
     }
 }

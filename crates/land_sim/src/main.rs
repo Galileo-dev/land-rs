@@ -2,7 +2,7 @@ use bevy::{
     log::LogPlugin,
     prelude::*,
     render::{
-        settings::{WgpuFeatures, WgpuSettings},
+        settings::{RenderCreation, WgpuFeatures, WgpuSettings},
         RenderPlugin,
     },
     window::PresentMode,
@@ -38,36 +38,37 @@ fn main() {
         .add_plugins(
             DefaultPlugins
                 .set(RenderPlugin {
-                    wgpu_settings: WgpuSettings {
+                    render_creation: RenderCreation::Automatic(WgpuSettings {
                         features: WgpuFeatures::POLYGON_MODE_LINE,
                         ..default()
-                    },
+                    }),
+                    ..default()
                 })
                 .set(LogPlugin {
                     level: bevy::log::Level::DEBUG,
                     filter: "info,wgpu_core=error,wgpu_hal=error,land_sim=debug".to_string(),
+                    ..default()
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Land Sim".to_string(),
                         present_mode: PresentMode::AutoVsync,
-                        ..Default::default()
+                        ..default()
                     }),
-                    ..Default::default()
+                    ..default()
                 }),
         )
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(GesturePlugin)
-        .add_plugin(PanOrbitCameraPlugin)
-        .add_plugin(EventMapperPlugin)
-        .add_plugin(DiagnosticsPlugin)
-        .add_plugin(ControlStateUIPlugin)
-        .add_plugin(RocketControlPlugin)
-        .add_startup_system(setup_camera)
-        .add_startup_system(setup_physics)
-        .add_startup_system(spawn_rocket)
+        .add_plugins((
+            WorldInspectorPlugin::new(),
+            RapierDebugRenderPlugin::default(),
+            GesturePlugin,
+            PanOrbitCameraPlugin,
+            EventMapperPlugin,
+            DiagnosticsPlugin,
+            ControlStateUIPlugin,
+            RocketControlPlugin,
+        ))
+        .add_systems(Update, (setup_camera, setup_physics, spawn_rocket))
         .run();
 }
 
@@ -75,29 +76,23 @@ fn setup_camera(mut commands: Commands) {
     let translation = Vec3::new(-2.0, 2.5, 5.0);
     let radius = translation.length();
 
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
-            ..Default::default()
-        },
-        PanOrbitCamera {
-            focus: Vec3::ZERO,
-            radius,
-            upside_down: false,
-        },
-    ));
+    commands.spawn(PanOrbitCamera {
+        focus: Vec3::ZERO,
+        radius,
+        upside_down: false,
+    });
 }
 
 fn setup_physics(mut commands: Commands) {
     /* Create the ground. */
     commands
         .spawn(Collider::cuboid(100.0, 0.1, 100.0))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, -2.0, 0.0)));
+        .insert(Transform::from_xyz(0.0, -2.0, 0.0));
 
     /* Create the bouncing ball. */
     commands
         .spawn(RigidBody::Dynamic)
         .insert(Collider::ball(0.5))
         .insert(Restitution::coefficient(0.7))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, 4.0, 0.0)));
+        .insert(Transform::from_xyz(0.0, 4.0, 0.0));
 }

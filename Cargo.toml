@@ -1,15 +1,26 @@
 [workspace]
 
-members = [
-    "land_sim",
-]
+members = ["crates/gfold_rs", "crates/land_sim"]
 
 resolver = "2" # Important! wgpu/Bevy needs this!
 
-# Enable a small amount of optimization in debug mode
-[profile.dev]
-opt-level = 1
+default-members = ["crates/land_sim"]
 
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
-[profile.dev.package."*"]
-opt-level = 3
+[workspace.dependencies]
+
+#
+# Workspace member crates
+#
+gfold-rs = { path = "crates/gfold_rs" }
+
+#
+# External crates
+#
+
+bevy = { version = "0.15", features = ["dynamic_linking", "wayland"] }
+bevy_rapier3d = { version = "0.28", features = [
+  "simd-stable",
+  "debug-render-3d",
+] }
+bevy-inspector-egui = { version = "0.28" }
+iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }

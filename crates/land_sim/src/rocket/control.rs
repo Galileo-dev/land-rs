@@ -1,16 +1,6 @@
-use bevy::{
-    prelude::*, reflect::erased_serde::__private::serde::__private::de, transform::commands,
-};
-use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::rapier::prelude::ImpulseJointSet;
-use bevy_rapier3d::{
-    prelude::{ImpulseJoint, RapierConfiguration, RapierImpulseJointHandle, SphericalJoint},
-    rapier::prelude::JointMotor,
-};
-
-use crate::rocket::object::Rocket;
-
 use super::object::RocketBundle;
+use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 use std::collections::HashSet;
 
 // system to control the rocket with the keyboard
@@ -79,7 +69,7 @@ impl Default for KeyboardState {
 }
 
 pub fn keyboard_control_system(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut RocketControl>,
     mut keyboard_state: ResMut<KeyboardState>,
 ) {
@@ -91,47 +81,48 @@ pub fn keyboard_control_system(
 
     // Update the control values based on the pressed keys
     for mut control in query.iter_mut() {
-        if keyboard_state.keys_pressed.contains(&KeyCode::LShift) && control.thrust < MAX_THRUST {
+        if keyboard_state.keys_pressed.contains(&KeyCode::ShiftLeft) && control.thrust < MAX_THRUST
+        {
             control.thrust += 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::LControl)
+        if keyboard_state.keys_pressed.contains(&KeyCode::ControlLeft)
             && control.thrust > MIN_THRUST + EPSILON
         {
             control.thrust -= 0.1;
             debug!("thrust: {}", control.thrust);
         }
 
-        if keyboard_state.keys_pressed.contains(&KeyCode::W)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyW)
             && control.pitch < MAX_PITCH
             && control.pitch > MIN_PITCH
         {
             control.pitch += 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::S)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyS)
             && control.pitch < MAX_PITCH
             && control.pitch > MIN_PITCH
         {
             control.pitch -= 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::A)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyA)
             && control.yaw < MAX_YAW
             && control.yaw > MIN_YAW
         {
             control.yaw += 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::D)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyD)
             && control.yaw < MAX_YAW
             && control.yaw > MIN_YAW
         {
             control.yaw -= 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::Q)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyQ)
             && control.roll < MAX_ROLL
             && control.roll > MIN_ROLL
         {
             control.roll += 0.1;
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::E)
+        if keyboard_state.keys_pressed.contains(&KeyCode::KeyE)
             && control.roll < MAX_ROLL
             && control.roll > MIN_ROLL
         {
@@ -178,8 +169,7 @@ pub struct RocketControlPlugin;
 impl Plugin for RocketControlPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(KeyboardState::default())
-            .add_system(keyboard_control_system)
-            .add_system(update_control_system);
+            .add_systems(Update, (keyboard_control_system, update_control_system));
         // .add_system(update_motor_system);
     }
 }

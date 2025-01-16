@@ -11,6 +11,7 @@ pub enum GestureState {
     DoubleClick,
 }
 
+#[derive(Event)]
 pub struct GestureEvent {
     pub event: GestureState,
     pub button: MouseButton,
@@ -20,7 +21,7 @@ pub fn double_click_system(
     mut ev_gesture: EventWriter<GestureEvent>,
     time: Res<Time>,
     mut state: ResMut<GestureResource>,
-    mouse_button_input: Res<Input<MouseButton>>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
 ) {
     if state.cooldown.tick(time.delta()).just_finished() {
         debug!("Cooldown over");
@@ -67,6 +68,6 @@ impl Plugin for GesturePlugin {
             cooldown: Timer::from_seconds(0.0, TimerMode::Once),
         })
         .add_event::<GestureEvent>()
-        .add_system(double_click_system);
+        .add_systems(Update, double_click_system);
     }
 }
