@@ -59,8 +59,12 @@ fn main() {
                 }),
         )
         .add_plugins((
-            WorldInspectorPlugin::new(),
+            RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
+        ))
+        .add_plugins((
+
+            // Custom plugins
             GesturePlugin,
             PanOrbitCameraPlugin,
             EventMapperPlugin,
@@ -68,7 +72,7 @@ fn main() {
             ControlStateUIPlugin,
             RocketControlPlugin,
         ))
-        .add_systems(Update, (setup_camera, setup_physics, spawn_rocket))
+        .add_systems(Startup, (setup_camera, setup_physics, spawn_rocket))
         .run();
 }
 
@@ -76,11 +80,16 @@ fn setup_camera(mut commands: Commands) {
     let translation = Vec3::new(-2.0, 2.5, 5.0);
     let radius = translation.length();
 
-    commands.spawn(PanOrbitCamera {
-        focus: Vec3::ZERO,
-        radius,
-        upside_down: false,
-    });
+    commands.spawn((
+        Name::new("Camera"),
+        Camera3d::default(),
+        Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
+        PanOrbitCamera {
+            focus: Vec3::ZERO,
+            radius,
+            upside_down: false,
+        },
+    ));
 }
 
 fn setup_physics(mut commands: Commands) {
