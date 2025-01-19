@@ -168,8 +168,9 @@ pub struct RocketControlPlugin;
 
 impl Plugin for RocketControlPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(KeyboardState::default())
-            .add_systems(Update, (keyboard_control_system, update_control_system));
-        // .add_system(update_motor_system);
+        app.insert_resource(KeyboardState::default()).add_systems(
+            Update,
+            (keyboard_control_system, update_control_system, update_motor),
+        );
     }
 }

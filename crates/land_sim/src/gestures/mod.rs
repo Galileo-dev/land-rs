@@ -2,7 +2,7 @@
 mod gesture_system;
 use std::time::Duration;
 
-use gesture_system::{double_click_system, GestureEvent, GestureResource, GestureState};
+pub use gesture_system::{double_click_system, GestureEvent, GestureResource, GestureState};
 
 use crate::prelude::*;
 
