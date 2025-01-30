@@ -31,6 +31,9 @@ opt-level = "s"
 # Strip all debugging information from the binary to slightly reduce file size.
 strip = "debuginfo"
 
+[features]
+wayland = ["bevy/wayland"]
+
 [dependencies]
 thiserror = { workspace = true }
 bevy = { workspace = true }

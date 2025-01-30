@@ -6,7 +6,7 @@ use bevy_inspector_egui::quick::{FilterQueryInspectorPlugin, WorldInspectorPlugi
 use iyes_perf_ui::prelude::*;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((
+    app.register_type::<rocket::RocketControl>().add_plugins((
         // Needed for FPS
         FrameTimeDiagnosticsPlugin,
         EntityCountDiagnosticsPlugin,

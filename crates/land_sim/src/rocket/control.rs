@@ -1,4 +1,6 @@
-use super::object::RocketBundle;
+use crate::rocket;
+
+use super::object::Rocket;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use std::collections::HashSet;
@@ -34,7 +36,7 @@ static MIN_ROLL: f32 = -1.0;
 // the main thrusters will be used for thrust
 // the nozzle can be rotated to change the direction of the thrust
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct RocketControl {
     pub thrust: f32,
     pub pitch: f32,
@@ -130,47 +132,31 @@ pub fn keyboard_control_system(
         }
     }
 }
-pub fn update_control_system(
-    mut query: Query<&mut RocketControl>,
-    mut joints: Query<&mut RapierImpulseJointHandle>,
-) {
+pub fn update_control_system(mut rocket_control: Query<&mut RocketControl>) {
     // gradually reduce the control values back to zero except for thrust
-    for mut control in query.iter_mut() {
+    for mut control in rocket_control.iter_mut() {
         control.pitch *= 0.9;
         control.yaw *= 0.9;
         control.roll *= 0.9;
     }
-
-    // update the joints
-    // for mut joint in joints.iter_mut() {
-    //     let impulse_joint = joint.0;
-    //     impulse_joint.
-    //     // let mut motor = joint.motor_mut();
-    //     // motor.set_desired_velocity(10.0);
-    // }
 }
 
-fn update_motor(mut query: Query<&mut RapierImpulseJointHandle>) {
-    for mut joint in query.iter_mut() {
-        let impulse_joint = joint.0;
+fn update_motor(
+    rocket_control: Query<&RocketControl>,
+    mut nozzle_gimbal: Query<(&mut Transform, &mut ImpulseJoint), With<Rocket>>,
+) {
+    for (i, (nozzle_transform, mut impulse_joint)) in nozzle_gimbal.iter_mut().enumerate(){
+        println!("gimbling nozzle: {i}");
+        impulse_joint.data.as_mut().set_motor_position(JointAxis::AngY, rocket_control., 1.0e4, 1.0e3);
     }
 }
-
-// fn update_motor_system(mut rockets: Query<&mut SphericalJoint>) {
-//     for mut rocket in rockets.iter_mut() {
-//         let mut motor = rocket
-//         motor.set_desired_velocity(10.0);
-//     }
-// }
 
 // rocket control plugin
 pub struct RocketControlPlugin;
 
 impl Plugin for RocketControlPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(KeyboardState::default()).add_systems(
-            Update,
-            (keyboard_control_system, update_control_system, update_motor),
-        );
+        app.insert_resource(KeyboardState::default())
+            .add_systems(Update, (keyboard_control_system, update_control_system));
     }
 }
