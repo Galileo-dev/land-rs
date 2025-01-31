@@ -99,8 +99,6 @@ pub fn pan_orbit_camera(
 
     for (mut pan_orbit, mut transform, projection) in query.iter_mut() {
         if orbit_button_changed {
-            // only check for upside down when orbiting started or ended this frame
-            // if the camera is "upside" down, panning horizontally would be inverted, so invert the input to make it correct
             let up = transform.rotation * Vec3::Y;
             pan_orbit.upside_down = up.y <= 0.0;
         }
@@ -144,13 +142,12 @@ pub fn pan_orbit_camera(
             pan_orbit.radius = pan_orbit.radius.max(0.01).max(10.0);
         }
 
-        if any {
-            // emulating parent/child to make the yaw/y-axis rotation behave like a turntable
-            // parent = x and y rotation
-            // child = z-offset
-            let rot_matrix = Mat3::from_quat(transform.rotation);
-            transform.translation =
-                pan_orbit.focus + rot_matrix.mul_vec3(Vec3::new(0.0, 0.0, pan_orbit.radius));
+        let rot_matrix = Mat3::from_quat(transform.rotation);
+        let target_pos =
+            pan_orbit.focus + rot_matrix.mul_vec3(Vec3::new(0.0, 0.0, pan_orbit.radius));
+
+        if any || transform.translation != target_pos {
+            transform.translation = target_pos;
         }
     }
 

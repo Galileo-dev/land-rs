@@ -1,13 +1,22 @@
-pub mod error;
+#![allow(clippy::needless_pass_by_value)]
+
 pub mod cam;
-pub mod gestures;
+pub mod error;
 pub mod event_mapper;
+pub mod gestures;
+pub mod prelude;
 pub mod rocket;
 pub mod utils;
-pub mod prelude;
 
-use bevy::{log::LogPlugin, render::{settings::{RenderCreation, WgpuFeatures, WgpuSettings}, RenderPlugin}, window::PresentMode};
-use cam::PanOrbitCamera;
+use bevy::{
+    log::LogPlugin,
+    render::{
+        settings::{RenderCreation, WgpuFeatures, WgpuSettings},
+        RenderPlugin,
+    },
+    window::PresentMode,
+};
+use cam::{PanOrbitCamera, RocketCamera};
 use prelude::*;
 
 fn main() {
@@ -41,15 +50,14 @@ fn main() {
             RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
-
             // Custom plugins
             crate::cam::plugin,
             crate::event_mapper::plugin,
             crate::gestures::plugin,
-            crate::utils::diagnostics::plugin,
             crate::rocket::plugin,
+            crate::utils::diagnostics::plugin,
         ))
-        .add_systems(Startup, (setup_camera, setup_physics ))
+        .add_systems(Startup, (setup_camera, setup_physics))
         .run();
 }
 
@@ -60,12 +68,17 @@ fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Name::new("Camera"),
         Camera3d::default(),
+        Projection::from(PerspectiveProjection {
+            fov: 70.0_f32.to_radians(),
+            ..default()
+        }),
         Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
         PanOrbitCamera {
             focus: Vec3::ZERO,
             radius,
             upside_down: false,
         },
+        RocketCamera,
     ));
 }
 
@@ -74,11 +87,4 @@ fn setup_physics(mut commands: Commands) {
     commands
         .spawn(Collider::cuboid(100.0, 0.1, 100.0))
         .insert(Transform::from_xyz(0.0, -2.0, 0.0));
-
-    /* Create the bouncing ball. */
-    commands
-        .spawn(RigidBody::Dynamic)
-        .insert(Collider::ball(0.5))
-        .insert(Restitution::coefficient(0.7))
-        .insert(Transform::from_xyz(0.0, 4.0, 0.0));
 }

@@ -1,5 +1,5 @@
 mod object;
-pub use object::spawn_rocket;
+pub use object::{spawn_rocket, Rocket};
 
 mod control;
 pub use control::RocketControl;

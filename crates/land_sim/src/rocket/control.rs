@@ -1,42 +1,49 @@
-use crate::rocket;
+use bevy::color::palettes::css::GREEN;
 
-use super::object::Rocket;
-use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
-use std::collections::HashSet;
+use crate::prelude::*;
 
-// system to control the rocket with the keyboard
-// shift : thrust +
-// ctrl :  thrust -
-// w : pitch +
-// s : pitch -
-// a : yaw +
-// d : yaw -
-// q : roll +
-// e : roll -
+use super::object::{Rocket, RocketEngine};
 
-//===================== Temporary =====================
-/// todo(): replace these with values with a setting object
+#[derive(Event)]
+pub struct RocketControlInput {
+    pub entity: Entity,
+    pub input_type: RocketInputType,
+}
 
-static MAX_THRUST: f32 = 100.0;
-static MIN_THRUST: f32 = 0.0;
+#[derive(Debug, Clone, Copy)]
+pub enum RocketInputType {
+    ThrustIncrease,
+    ThrustDecrease,
+    PitchUp,
+    PitchDown,
+    YawLeft,
+    YawRight,
+    RollLeft,
+    RollRight,
+}
 
-static MAX_PITCH: f32 = 1.0;
-static MIN_PITCH: f32 = -1.0;
+#[derive(Resource)]
+pub struct RocketControlSettings {
+    pub max_thrust: f32,
+    pub min_thrust: f32,
+    pub max_angle: f32,
+    pub control_sensitivity: f32,
+    pub dampening: f32,
+}
 
-static MAX_YAW: f32 = 1.0;
-static MIN_YAW: f32 = -1.0;
+impl Default for RocketControlSettings {
+    fn default() -> Self {
+        Self {
+            max_thrust: 100.0,
+            min_thrust: 0.0,
+            max_angle: 1.0,
+            control_sensitivity: 0.1,
+            dampening: 0.9,
+        }
+    }
+}
 
-static MAX_ROLL: f32 = 1.0;
-static MIN_ROLL: f32 = -1.0;
-
-//===================== Temporary =====================
-
-// a mix of rcs and main thrusters will be used for pitch, yaw and roll
-// the main thrusters will be used for thrust
-// the nozzle can be rotated to change the direction of the thrust
-
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Default)]
 pub struct RocketControl {
     pub thrust: f32,
     pub pitch: f32,
@@ -44,110 +51,180 @@ pub struct RocketControl {
     pub roll: f32,
 }
 
-impl Default for RocketControl {
-    fn default() -> Self {
-        Self {
-            thrust: 0.0,
-            pitch: 0.0,
-            yaw: 0.0,
-            roll: 0.0,
-        }
-    }
-}
-
-const EPSILON: f32 = 0.0001;
-
-#[derive(Resource)]
-pub struct KeyboardState {
-    keys_pressed: HashSet<KeyCode>,
-}
-
-impl Default for KeyboardState {
-    fn default() -> Self {
-        Self {
-            keys_pressed: HashSet::new(),
-        }
-    }
-}
-
-pub fn keyboard_control_system(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut RocketControl>,
-    mut keyboard_state: ResMut<KeyboardState>,
+pub fn keyboard_input_system(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    query: Query<Entity, With<RocketControl>>,
+    mut control_events: EventWriter<RocketControlInput>,
 ) {
-    // Update the set of currently pressed keys
-    keyboard_state.keys_pressed.clear();
-    for key_code in keyboard_input.get_pressed() {
-        keyboard_state.keys_pressed.insert(*key_code);
-    }
-
-    // Update the control values based on the pressed keys
-    for mut control in query.iter_mut() {
-        if keyboard_state.keys_pressed.contains(&KeyCode::ShiftLeft) && control.thrust < MAX_THRUST
-        {
-            control.thrust += 0.1;
+    for entity in query.iter() {
+        if keyboard.pressed(KeyCode::ShiftLeft) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::ThrustIncrease,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::ControlLeft)
-            && control.thrust > MIN_THRUST + EPSILON
-        {
-            control.thrust -= 0.1;
-            debug!("thrust: {}", control.thrust);
+        if keyboard.pressed(KeyCode::ControlLeft) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::ThrustDecrease,
+            });
         }
-
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyW)
-            && control.pitch < MAX_PITCH
-            && control.pitch > MIN_PITCH
-        {
-            control.pitch += 0.1;
+        if keyboard.pressed(KeyCode::KeyW) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::PitchUp,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyS)
-            && control.pitch < MAX_PITCH
-            && control.pitch > MIN_PITCH
-        {
-            control.pitch -= 0.1;
+        if keyboard.pressed(KeyCode::KeyS) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::PitchDown,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyA)
-            && control.yaw < MAX_YAW
-            && control.yaw > MIN_YAW
-        {
-            control.yaw += 0.1;
+        if keyboard.pressed(KeyCode::KeyA) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::YawLeft,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyD)
-            && control.yaw < MAX_YAW
-            && control.yaw > MIN_YAW
-        {
-            control.yaw -= 0.1;
+        if keyboard.pressed(KeyCode::KeyD) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::YawRight,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyQ)
-            && control.roll < MAX_ROLL
-            && control.roll > MIN_ROLL
-        {
-            control.roll += 0.1;
+        if keyboard.pressed(KeyCode::KeyQ) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::RollLeft,
+            });
         }
-        if keyboard_state.keys_pressed.contains(&KeyCode::KeyE)
-            && control.roll < MAX_ROLL
-            && control.roll > MIN_ROLL
-        {
-            control.roll -= 0.1;
+        if keyboard.pressed(KeyCode::KeyE) {
+            control_events.send(RocketControlInput {
+                entity,
+                input_type: RocketInputType::RollRight,
+            });
         }
     }
 }
-pub fn update_control_system(mut rocket_control: Query<&mut RocketControl>) {
-    // gradually reduce the control values back to zero except for thrust
-    for mut control in rocket_control.iter_mut() {
-        control.pitch *= 0.9;
-        control.yaw *= 0.9;
-        control.roll *= 0.9;
-    }
-}
 
-fn update_motor(
-    rocket_control: Query<&RocketControl>,
-    mut nozzle_gimbal: Query<(&mut Transform, &mut ImpulseJoint), With<Rocket>>,
+pub fn dampen_controls_system(
+    mut rockets: Query<&mut RocketControl>,
+    settings: Res<RocketControlSettings>,
 ) {
-    for (i, (nozzle_transform, mut impulse_joint)) in nozzle_gimbal.iter_mut().enumerate(){
-        println!("gimbling nozzle: {i}");
-        impulse_joint.data.as_mut().set_motor_position(JointAxis::AngY, rocket_control., 1.0e4, 1.0e3);
+    for mut control in &mut rockets {
+        control.pitch *= settings.dampening;
+        control.yaw *= settings.dampening;
+        control.roll *= settings.dampening;
+    }
+}
+
+pub fn rocket_control_system(
+    mut events: EventReader<RocketControlInput>,
+    mut rockets: Query<&mut RocketControl>,
+    settings: Res<RocketControlSettings>,
+) {
+    for event in events.read() {
+        if let Ok(mut control) = rockets.get_mut(event.entity) {
+            match event.input_type {
+                RocketInputType::ThrustIncrease => {
+                    control.thrust =
+                        (control.thrust + settings.control_sensitivity).min(settings.max_thrust);
+                }
+                RocketInputType::ThrustDecrease => {
+                    control.thrust =
+                        (control.thrust - settings.control_sensitivity).max(settings.min_thrust);
+                }
+                RocketInputType::PitchUp => {
+                    control.pitch =
+                        (control.pitch + settings.control_sensitivity).min(settings.max_angle);
+                }
+                RocketInputType::PitchDown => {
+                    control.pitch =
+                        (control.pitch - settings.control_sensitivity).max(-settings.max_angle);
+                }
+                RocketInputType::YawLeft => {
+                    control.yaw =
+                        (control.yaw + settings.control_sensitivity).min(settings.max_angle);
+                }
+                RocketInputType::YawRight => {
+                    control.yaw =
+                        (control.yaw - settings.control_sensitivity).max(-settings.max_angle);
+                }
+                RocketInputType::RollLeft => {
+                    control.roll =
+                        (control.roll + settings.control_sensitivity).min(settings.max_angle);
+                }
+                RocketInputType::RollRight => {
+                    control.roll =
+                        (control.roll - settings.control_sensitivity).max(-settings.max_angle);
+                }
+            }
+        }
+    }
+}
+
+fn update_motor_system(
+    rockets: Query<(&RocketControl, &Children), With<Rocket>>,
+    mut nozzles: Query<(&mut ImpulseJoint, &RocketEngine)>,
+    settings: Res<RocketControlSettings>,
+) {
+    for (control, children) in rockets.iter() {
+        for &child in children {
+            if let Ok((mut joint, engine)) = nozzles.get_mut(child) {
+                // Clamp the control values to prevent extreme angles
+                let max_angle = engine.degrees_of_freedom.to_radians();
+                let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
+                let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
+
+                joint.data.as_mut().set_motor_position(
+                    JointAxis::AngX,
+                    pitch,
+                    engine.motor_stiffness,
+                    engine.motor_damping,
+                );
+                joint.data.as_mut().set_motor_position(
+                    JointAxis::AngZ,
+                    yaw,
+                    engine.motor_stiffness,
+                    engine.motor_damping,
+                );
+            }
+        }
+    }
+}
+
+pub fn apply_thrust_system(
+    mut rockets: Query<(&RocketControl, &Children, &mut ExternalForce), With<Rocket>>,
+    mut nozzles: Query<(&Transform, &RocketEngine)>,
+) {
+    for (control, children, mut external_force) in rockets.iter_mut() {
+        for &child in children.iter() {
+            if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
+                let thrust = control.thrust.min(engine.max_thrust);
+                log::info!("Thrust: {}", thrust);
+                // Todo: Apply thrust to the nozzle instead of the rocket
+                let direction = nozzle_transform.local_y();
+                external_force.force = direction * thrust;
+            }
+        }
+    }
+}
+
+pub fn draw_debug_line(
+    mut rockets: Query<(&Children, &mut ExternalForce), With<Rocket>>,
+    mut nozzles: Query<(&Transform, &RocketEngine)>,
+    mut gizmos: Gizmos,
+) {
+    for (children, mut external_force) in rockets.iter_mut() {
+        for &child in children.iter() {
+            if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
+                let direction = nozzle_transform.local_y();
+                let start = nozzle_transform.translation;
+                let end = start + direction * 10.0 / engine.max_thrust;
+                gizmos.line(start, end, GREEN);
+            }
+        }
     }
 }
 
@@ -156,7 +233,18 @@ pub struct RocketControlPlugin;
 
 impl Plugin for RocketControlPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(KeyboardState::default())
-            .add_systems(Update, (keyboard_control_system, update_control_system));
+        app.insert_resource(RocketControlSettings::default())
+            .add_event::<RocketControlInput>()
+            .add_systems(
+                Update,
+                (
+                    keyboard_input_system,
+                    rocket_control_system,
+                    dampen_controls_system,
+                    update_motor_system,
+                    apply_thrust_system,
+                )
+                    .chain(),
+            );
     }
 }
