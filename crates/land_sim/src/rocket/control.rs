@@ -169,63 +169,46 @@ fn update_motor_system(
     mut nozzles: Query<(&mut ImpulseJoint, &RocketEngine)>,
     settings: Res<RocketControlSettings>,
 ) {
-    for (control, children) in rockets.iter() {
-        for &child in children {
-            if let Ok((mut joint, engine)) = nozzles.get_mut(child) {
-                // Clamp the control values to prevent extreme angles
-                let max_angle = engine.degrees_of_freedom.to_radians();
-                let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
-                let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
+    // for (control, children) in rockets.iter() {
+    //     for &child in children {
+    //         if let Ok((mut joint, engine)) = nozzles.get_mut(child) {
+    //             // Clamp the control values to prevent extreme angles
+    //             let max_angle = engine.degrees_of_freedom.to_radians();
+    //             let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
+    //             let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
 
-                joint.data.as_mut().set_motor_position(
-                    JointAxis::AngX,
-                    pitch,
-                    engine.motor_stiffness,
-                    engine.motor_damping,
-                );
-                joint.data.as_mut().set_motor_position(
-                    JointAxis::AngZ,
-                    yaw,
-                    engine.motor_stiffness,
-                    engine.motor_damping,
-                );
-            }
-        }
-    }
+    //             joint.data.as_mut().set_motor_position(
+    //                 JointAxis::AngX,
+    //                 pitch,
+    //                 engine.motor_stiffness,
+    //                 engine.motor_damping,
+    //             );
+    //             joint.data.as_mut().set_motor_position(
+    //                 JointAxis::AngZ,
+    //                 yaw,
+    //                 engine.motor_stiffness,
+    //                 engine.motor_damping,
+    //             );
+    //         }
+    //     }
+    // }
 }
 
 pub fn apply_thrust_system(
     mut rockets: Query<(&RocketControl, &Children, &mut ExternalForce), With<Rocket>>,
     mut nozzles: Query<(&Transform, &RocketEngine)>,
 ) {
-    for (control, children, mut external_force) in rockets.iter_mut() {
-        for &child in children.iter() {
-            if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
-                let thrust = control.thrust.min(engine.max_thrust);
-                log::info!("Thrust: {}", thrust);
-                // Todo: Apply thrust to the nozzle instead of the rocket
-                let direction = nozzle_transform.local_y();
-                external_force.force = direction * thrust;
-            }
-        }
-    }
-}
-
-pub fn draw_debug_line(
-    mut rockets: Query<(&Children, &mut ExternalForce), With<Rocket>>,
-    mut nozzles: Query<(&Transform, &RocketEngine)>,
-    mut gizmos: Gizmos,
-) {
-    for (children, mut external_force) in rockets.iter_mut() {
-        for &child in children.iter() {
-            if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
-                let direction = nozzle_transform.local_y();
-                let start = nozzle_transform.translation;
-                let end = start + direction * 10.0 / engine.max_thrust;
-                gizmos.line(start, end, GREEN);
-            }
-        }
-    }
+    // for (control, children, mut external_force) in rockets.iter_mut() {
+    //     for &child in children.iter() {
+    //         if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
+    //             let thrust = control.thrust.min(engine.max_thrust);
+    //             log::info!("Thrust: {}", thrust);
+    //             // Todo: Apply thrust to the nozzle instead of the rocket
+    //             let direction = nozzle_transform.local_y();
+    //             external_force.force = direction * thrust;
+    //         }
+    //     }
+    // }
 }
 
 // rocket control plugin

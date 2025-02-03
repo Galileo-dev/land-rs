@@ -1,5 +1,7 @@
 // Game components
 pub(crate) use bevy::prelude::*;
+
+pub(crate) use bevy_rapier3d::prelude::Real;
 pub(crate) use bevy_rapier3d::prelude::*;
 
 pub(crate) mod error {

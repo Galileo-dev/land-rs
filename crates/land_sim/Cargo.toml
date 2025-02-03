@@ -44,6 +44,7 @@ log = { version = "*", features = [
   "release_max_level_warn",
 ] }
 iyes_perf_ui = { workspace = true }
+bon = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

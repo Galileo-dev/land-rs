@@ -30,3 +30,4 @@ bevy_rapier3d = { version = "0.28", features = [
 ] }
 bevy-inspector-egui = { version = "0.28" }
 iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
+bon = "3.3.2"
