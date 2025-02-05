@@ -86,5 +86,5 @@ fn setup_physics(mut commands: Commands) {
     /* Create the ground. */
     commands
         .spawn(Collider::cuboid(100.0, 0.1, 100.0))
-        .insert(Transform::from_xyz(0.0, -2.0, 0.0));
+        .insert(Transform::from_xyz(0.0, 0.0, 0.0));
 }

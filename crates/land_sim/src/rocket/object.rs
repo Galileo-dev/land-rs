@@ -38,7 +38,7 @@ pub fn spawn_rocket(mut commands: Commands) {
     // Define collision group for the rocket parts.
     let rocket_group = Group::GROUP_1;
 
-    let start_height = 0.001;
+    let start_height = 0.0;
 
     let body_height = 4.0;
     let body_radius = 0.5;
