@@ -38,12 +38,12 @@ impl Default for RocketControlSettings {
             min_thrust: 0.0,
             max_angle: 1.0,
             control_sensitivity: 0.1,
-            dampening: 0.9,
+            dampening: 0.90,
         }
     }
 }
 
-#[derive(Component, Reflect, Default)]
+#[derive(Component, Default, PartialEq, Debug, Reflect, Clone)]
 pub struct RocketControl {
     pub thrust: f32,
     pub pitch: f32,
@@ -128,12 +128,16 @@ pub fn rocket_control_system(
         if let Ok(mut control) = rockets.get_mut(event.entity) {
             match event.input_type {
                 RocketInputType::ThrustIncrease => {
-                    control.thrust =
-                        (control.thrust + settings.control_sensitivity).min(settings.max_thrust);
+                    control.thrust = settings
+                        .control_sensitivity
+                        .mul_add(10.0, control.thrust)
+                        .min(settings.max_thrust);
                 }
                 RocketInputType::ThrustDecrease => {
-                    control.thrust =
-                        (control.thrust - settings.control_sensitivity).max(settings.min_thrust);
+                    control.thrust = settings
+                        .control_sensitivity
+                        .mul_add(-10.0, control.thrust)
+                        .max(settings.min_thrust);
                 }
                 RocketInputType::PitchUp => {
                     control.pitch =
@@ -165,50 +169,64 @@ pub fn rocket_control_system(
 }
 
 fn update_motor_system(
-    rockets: Query<(&RocketControl, &Children), With<Rocket>>,
-    mut nozzles: Query<(&mut ImpulseJoint, &RocketEngine)>,
-    settings: Res<RocketControlSettings>,
+    rockets: Query<&RocketControl>,
+    mut nozzles: Query<(Entity, &GlobalTransform, &RocketEngine, &mut ImpulseJoint)>,
 ) {
-    // for (control, children) in rockets.iter() {
-    //     for &child in children {
-    //         if let Ok((mut joint, engine)) = nozzles.get_mut(child) {
-    //             // Clamp the control values to prevent extreme angles
-    //             let max_angle = engine.degrees_of_freedom.to_radians();
-    //             let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
-    //             let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
+    for (nozzle_entity, global_transform, engine, mut joint) in nozzles.iter_mut() {
+        let parent = joint.parent;
 
-    //             joint.data.as_mut().set_motor_position(
-    //                 JointAxis::AngX,
-    //                 pitch,
-    //                 engine.motor_stiffness,
-    //                 engine.motor_damping,
-    //             );
-    //             joint.data.as_mut().set_motor_position(
-    //                 JointAxis::AngZ,
-    //                 yaw,
-    //                 engine.motor_stiffness,
-    //                 engine.motor_damping,
-    //             );
-    //         }
-    //     }
-    // }
+        if let Ok(control) = rockets.get(parent) {
+            // Clamp the control values to prevent extreme angles
+            let max_angle = engine.degrees_of_freedom.to_radians();
+            let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
+            let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
+
+            joint.data.as_mut().set_motor_position(
+                JointAxis::AngX,
+                pitch,
+                engine.motor_stiffness,
+                engine.motor_damping,
+            );
+            joint.data.as_mut().set_motor_position(
+                JointAxis::AngZ,
+                yaw,
+                engine.motor_stiffness,
+                engine.motor_damping,
+            );
+        }
+    }
 }
 
 pub fn apply_thrust_system(
-    mut rockets: Query<(&RocketControl, &Children, &mut ExternalForce), With<Rocket>>,
-    mut nozzles: Query<(&Transform, &RocketEngine)>,
+    mut nozzles: Query<(
+        Entity,
+        &GlobalTransform,
+        &RocketEngine,
+        &mut ExternalForce,
+        &ImpulseJoint,
+    )>,
+    rockets: Query<&RocketControl>,
+    mut gizmos: Gizmos,
+    settings: Res<RocketControlSettings>,
 ) {
-    // for (control, children, mut external_force) in rockets.iter_mut() {
-    //     for &child in children.iter() {
-    //         if let Ok((nozzle_transform, engine)) = nozzles.get(child) {
-    //             let thrust = control.thrust.min(engine.max_thrust);
-    //             log::info!("Thrust: {}", thrust);
-    //             // Todo: Apply thrust to the nozzle instead of the rocket
-    //             let direction = nozzle_transform.local_y();
-    //             external_force.force = direction * thrust;
-    //         }
-    //     }
-    // }
+    for (nozzle_entity, global_transform, engine, mut external_force, joint) in nozzles.iter_mut() {
+        let parent = joint.parent;
+
+        if let Ok(control) = rockets.get(parent) {
+            let thrust = engine.max_thrust * control.thrust / settings.max_thrust;
+
+            let world_transform = global_transform.compute_transform();
+            let thrust_direction = world_transform.rotation * Vec3::Y;
+
+            external_force.force = thrust_direction * thrust;
+
+            gizmos.line(
+                world_transform.translation,
+                world_transform.translation + thrust_direction * thrust / 10.0,
+                GREEN,
+            );
+        }
+    }
 }
 
 // rocket control plugin

@@ -2,7 +2,7 @@ mod object;
 pub use object::{spawn_rocket, Rocket};
 
 mod control;
-pub use control::RocketControl;
+pub(super) use control::RocketControl;
 
 use crate::prelude::*;
 
