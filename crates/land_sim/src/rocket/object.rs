@@ -38,7 +38,7 @@ pub fn spawn_rocket(mut commands: Commands) {
     // Define collision group for the rocket parts.
     let rocket_group = Group::GROUP_1;
 
-    let start_height = 0.0;
+    let start_height = 100.0;
 
     let body_height = 4.0;
     let body_radius = 0.5;
@@ -59,6 +59,8 @@ pub fn spawn_rocket(mut commands: Commands) {
             Friction::new(0.1),
             ColliderMassProperties::Mass(100.0),
             CollisionGroups::new(rocket_group, !rocket_group),
+            Sleeping::disabled(),
+            Ccd::enabled(),
         ))
         .id();
 
@@ -76,13 +78,15 @@ pub fn spawn_rocket(mut commands: Commands) {
             Friction::new(0.1),
             ColliderMassProperties::Mass(10.0),
             CollisionGroups::new(rocket_group, !rocket_group),
+            Sleeping::disabled(),
+            Ccd::enabled(),
             // Engine needs to be able to apply forces to the rocket body.
             ExternalForce::default(),
         ))
         .id();
 
     // Make nozzle a child of the rocket body
-    // commands.entity(rocket_body_id).add_child(nozzle_id);
+    commands.entity(rocket_body_id).add_child(nozzle_id);
 
     // ----- Spawn engine nozzle -----
     // We initially spawn the engine nozzle just below the rocket body

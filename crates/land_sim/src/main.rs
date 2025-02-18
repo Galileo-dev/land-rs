@@ -85,6 +85,10 @@ fn setup_camera(mut commands: Commands) {
 fn setup_physics(mut commands: Commands) {
     /* Create the ground. */
     commands
-        .spawn(Collider::cuboid(100.0, 0.1, 100.0))
+        .spawn(Collider::cuboid(1000.0, 0.1, 1000.0))
         .insert(Transform::from_xyz(0.0, 0.0, 0.0));
+    /* Create a landing pad. */
+    commands
+        .spawn(Collider::cylinder(0.05, 5.0))
+        .insert(Transform::from_xyz(0.0, 0.05, 0.0));
 }
