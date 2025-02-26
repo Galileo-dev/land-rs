@@ -4,7 +4,7 @@
 #import "styles/styles.typ": *
 #import "styles/abbreviations.typ": abbreviations-page
 #import "styles/frontpage.typ": frontpage
-
+#import "utils/symbols.typ": *
 
 #show: make-glossary
 #let abbreviations = (
@@ -32,6 +32,9 @@
 
 #show raw: set text(font: "Monaspace Argon", size: 9pt)
 
+// Define bibliography
+#let bibliography = bibliography("references.bib", style: "ieee")
+
 // Use front page stylings
 #show: front-page-style
 
@@ -54,3 +57,18 @@
 = Introduction <chp:introduction>
 #include "./chapters/introduction.typ"
 #pagebreak()
+
+= Literature Review <chp:literature_review>
+#include "./chapters/literature_review.typ"
+#pagebreak()
+
+= Methodology <chp:methodology>
+#include "./chapters/methodology.typ"
+#pagebreak()
+
+= Progress Update <chp:progress_update>
+#include "./chapters/progress_update.typ"
+#pagebreak()
+
+= References
+#bibliography
