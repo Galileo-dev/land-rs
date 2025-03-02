@@ -4,9 +4,11 @@
 #import "styles/styles.typ": *
 #import "styles/abbreviations.typ": abbreviations-page
 #import "styles/frontpage.typ": frontpage
+#import "styles/components.typ": *
 #import "utils/symbols.typ": *
 
 #show: make-glossary
+
 #let abbreviations = (
   (
     key: "ul",
@@ -24,20 +26,38 @@
     long: "Graphics Processing Unit",
   ),
 )
-#register-glossary(abbreviations)
 
+#register-glossary(abbreviations)
 #show: codly-init.with()
 
-#set text(font: "Inter Nerd Font Propo", size: 11pt)
+#set text(font: "Inter", size: 11pt, fill: rgb(51, 51, 51))
+#show raw: set text(font: "SF Mono", size: 10pt, fill: rgb(80, 80, 80))
+#set par(leading: 0.7em)
 
-#show raw: set text(font: "Monaspace Argon", size: 9pt)
+// Code block styling
+#show raw.where(block: true): block => {
+  set block(
+    fill: rgb(250, 250, 250),
+    radius: 4pt,
+    inset: 10pt,
+    width: 100%,
+  )
+  block
+}
+
+// Table styling
+#show table: table => {
+  clean-table(
+    table.headers,
+    ..table.rows,
+  )
+}
 
 // Define bibliography
 #let bibliography = bibliography("references.bib", style: "ieee")
 
 // Use front page stylings
 #show: front-page-style
-
 #frontpage(
   title: [Convex Optimization vs. RL for Rocket Landing],
   subtitle: "Investigating the performance of convex optimization vs reinforcement learning for landing autonomous rockets",
@@ -48,26 +68,32 @@
   date: datetime(year: 2025, month: 2, day: 18),
 )
 
-// TODO: Fix abbreviations page (currently doesn't display anything)
-// #show: abbreviations-page(abbreviations)
-
 // Use Main page stylings
 #show: main-page-style
 
-= Introduction <chp:introduction>
+// Table of contents
+#outline(
+  title: [Contents],
+  indent: 1em,
+)
+#pagebreak()
+
 #include "./chapters/introduction.typ"
 #pagebreak()
 
-= Literature Review <chp:literature_review>
 #include "./chapters/literature_review.typ"
 #pagebreak()
 
-= Methodology <chp:methodology>
 #include "./chapters/methodology.typ"
 #pagebreak()
 
-= Progress Update <chp:progress_update>
 #include "./chapters/progress_update.typ"
+#pagebreak()
+
+#include "./chapters/simulation.typ"
+#pagebreak()
+
+#include "./chapters/convex_approch.typ"
 #pagebreak()
 
 = References

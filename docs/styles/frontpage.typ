@@ -10,78 +10,63 @@
   set document(title: title, author: author)
   set page(
     paper: "a4",
-    margin: (left: 3mm, right: 3mm, top: 12mm, bottom: 27mm),
+    margin: (left: 2.5cm, right: 2.5cm, top: 2.5cm, bottom: 2.5cm),
     header: none,
     footer: none,
     numbering: none,
-    number-align: center,
   )
 
   set text(size: 12pt, lang: "en")
 
-  set par(leading: 0.5em)
-
-  // Faculty
+  // Logo placement
   place(
-    top + left,
-    dy: 30mm,
-    dx: 27mm,
-    text(12pt, weight: "light", faculty),
-  )
-
-  // Department
-  place(
-    top + left,
-    dy: 36mm,
-    dx: 27mm,
-    text(12pt, weight: "light", department),
+    top + center,
+    dy: 3cm,
+    image("../assets/logo.png", width: 35%),
   )
 
   // Title
   place(
-    top + left,
-    dy: 43mm,
-    dx: 27mm,
-    text(14pt, weight: "semibold", title),
+    top + center,
+    dy: 10cm,
+    box(
+      width: 80%,
+      align(center, text(24pt, weight: "medium", fill: rgb(50, 50, 50), title)),
+    ),
   )
 
-  // Subtitle (optional)
-  if (subtitle != "") {
+  // Subtitle
+  if subtitle != "" {
     place(
-      top + left,
-      dy: 49mm,
-      dx: 27mm,
+      top + center,
+      dy: 12cm,
       box(
-        width: 150mm,
-        text(12pt, weight: "light", subtitle),
+        width: 70%,
+        align(center, text(14pt, weight: "regular", fill: rgb(80, 80, 80), subtitle)),
       ),
     )
   }
 
-  // Author
+  // Author, department, and other details
   place(
-    top + left,
-    dy: 61mm,
-    dx: 27mm,
-    text(10pt, weight: "light", author),
-  )
-
-  // Description, Degree and Program
-  place(
-    top + left,
-    dy: 67mm,
-    dx: 27mm,
-    text(
-      10pt,
-      weight: "light",
-      degree + "  — " + date.display("[month repr:long] [year]"),
+    bottom + center,
+    dy: -3cm,
+    box(
+      width: 80%,
+      align(center)[
+        #text(12pt, weight: "regular", author)
+        #v(0.5em)
+        #text(10pt, fill: rgb(100, 100, 100), weight: "light", department)
+        #v(0.3em)
+        #text(10pt, fill: rgb(100, 100, 100), weight: "light", faculty)
+        #v(0.3em)
+        #text(
+          10pt,
+          fill: rgb(100, 100, 100),
+          weight: "light",
+          degree + " — " + date.display("[month repr:long] [year]"),
+        )
+      ],
     ),
-  )
-
-  // Image
-  place(
-    horizon + center,
-    dy: 0mm,
-    image("../assets/logo.png", width: 60%),
   )
 }

@@ -2,5 +2,9 @@
   "[typst]": {
     "editor.formatOnSave": true
 },
-"tinymist.formatterMode": "typstyle"
+"tinymist.formatterMode": "typstyle",
+"cSpell.words": [
+  "APDG",
+  "SOCP"
+]
 }
