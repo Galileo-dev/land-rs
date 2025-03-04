@@ -1,4 +1,4 @@
-#import "@preview/glossarium:0.5.1": print-glossary
+#import "@preview/glossarium:0.5.3": print-glossary
 
 // Only print short and long, disregard rest
 #let custom-print-title(entry) = {
@@ -18,6 +18,7 @@
       user-print-title: custom-print-title,
       // Disable back references in abbreviations list
       disable-back-references: true,
+      show-all: true,
     )
   ]
 }

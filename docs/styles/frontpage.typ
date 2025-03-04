@@ -22,13 +22,13 @@
   place(
     top + center,
     dy: 3cm,
-    image("../assets/logo.png", width: 35%),
+    image("../assets/logo.png", width: 80%),
   )
 
   // Title
   place(
     top + center,
-    dy: 10cm,
+    dy: 9cm,
     box(
       width: 80%,
       align(center, text(24pt, weight: "medium", fill: rgb(50, 50, 50), title)),

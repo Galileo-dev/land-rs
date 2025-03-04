@@ -6,6 +6,7 @@
 #import "styles/frontpage.typ": frontpage
 #import "styles/components.typ": *
 #import "utils/symbols.typ": *
+#import "@preview/cheq:0.2.2": checklist
 
 #show: make-glossary
 
@@ -25,25 +26,42 @@
     short: "GPU",
     long: "Graphics Processing Unit",
   ),
+  (
+    key: "twr",
+    short: "TWR",
+    long: "Thrust-to-Weight Ratio",
+  ),
+  (
+    key: "rl",
+    short: "RL",
+    long: "Reinforcement Learning",
+  ),
+  (
+    key: "gfold",
+    short: "G-FOLD",
+    long: "Guidance for Fuel Optimal Large Diverts",
+  ),
+  (
+    key: "pdg",
+    short: "PDG",
+    long: "Powered Descent Guidance",
+  ),
+  (
+    key: "apdg",
+    short: "APDG",
+    long: "Atmospheric Powered Descent Guidance",
+  ),
 )
 
 #register-glossary(abbreviations)
+
 #show: codly-init.with()
+#codly(zebra-fill: none)
+
 
 #set text(font: "Inter", size: 11pt, fill: rgb(51, 51, 51))
 #show raw: set text(font: "SF Mono", size: 10pt, fill: rgb(80, 80, 80))
 #set par(leading: 0.7em)
-
-// Code block styling
-#show raw.where(block: true): block => {
-  set block(
-    fill: rgb(250, 250, 250),
-    radius: 4pt,
-    inset: 10pt,
-    width: 100%,
-  )
-  block
-}
 
 // Table styling
 #show table: table => {
@@ -55,6 +73,9 @@
 
 // Define bibliography
 #let bibliography = bibliography("references.bib", style: "ieee")
+
+// Define the checklist style
+#show: checklist.with(fill: luma(95%), stroke: blue, radius: .2em)
 
 // Use front page stylings
 #show: front-page-style
@@ -71,6 +92,7 @@
 // Use Main page stylings
 #show: main-page-style
 
+
 // Table of contents
 #outline(
   title: [Contents],
@@ -78,7 +100,26 @@
 )
 #pagebreak()
 
-#include "./chapters/introduction.typ"
+// List of figures
+#outline(
+  title: [List of Figures],
+  target: figure.where(kind: image),
+)
+#pagebreak()
+
+// List of tables
+// #outline(
+//   title: [List of Tables],
+//   target: figure.where(kind: table),
+// )
+// #pagebreak()
+
+// Abbreviations
+#abbreviations-page(abbreviations)
+#pagebreak()
+
+// Abstract
+#include "./chapters/abstract.typ"
 #pagebreak()
 
 #include "./chapters/literature_review.typ"
@@ -87,14 +128,29 @@
 #include "./chapters/methodology.typ"
 #pagebreak()
 
-#include "./chapters/progress_update.typ"
-#pagebreak()
-
 #include "./chapters/simulation.typ"
 #pagebreak()
 
-#include "./chapters/convex_approch.typ"
+// #include "./chapters/convex_approch.typ"
+// #pagebreak()
+
+// #include "./chapters/rl_approach.typ"
+// #pagebreak()
+
+// #include "./chapters/preliminary_results.typ"
+// #pagebreak()
+
+// #include "./chapters/timeline_and_plan.typ"
+// #pagebreak()
+//
+
+// #include "./chapters/conclusion.typ"
+// #pagebreak()
+
+#include "./chapters/progress_update.typ"
 #pagebreak()
 
-= References
+// #include "./chapters/appendices.typ"
+// #pagebreak()
+
 #bibliography

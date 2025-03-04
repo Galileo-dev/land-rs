@@ -1,0 +1,3 @@
+= Abstract
+
+In this interim report I will be discussing the current progress of my Final Year Project in which I will compare trajectory optimisation approaches for landing autonomous rockets. I will outline the problem statement, review relevant papers and journals, describe the methodology I have chosen, and present findings from the simulation environment I have developed for this project. I will also discuss the recent progress I have made in implementing convex optimisation for trajectory optimisation. Finally, I will outline future work, including implementing @rl and a conclusive comparison of the two approaches.

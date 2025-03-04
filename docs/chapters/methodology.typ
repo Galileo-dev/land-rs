@@ -1,9 +1,14 @@
+
+
 = Methodology
 
 == Approach
-- Implement the G-FOLD algorithm using the Rust programming language with Clarabel.rs for solving convex optimisation problems. This allows for real-time performance and maintaining memory safety, vital for onboard computations during rocket descent.
+- Implement the @gfold algorithm using the Rust praintaogramming language with Clarabel.rs for solving convex optimisation problems. This allows for real-time performance and mining memory safety, vital for onboard computations during rocket descent.
 
-- Use the Bevy game engine for its ECS (Entity Component System) @Anderson2024bevyengine and Rapier physics engine @Crozet2024dimforge to develop a model of real-world physics; this will involve a fundamental rocket entity that can be controlled through various inputs such as nozzle angle, thrust and reaction control thrusters while providing altitude, displacement and velocity metrics to the guidance algorithms.
+- Implement a @rl approach using Pytorch to compare the performance and adaptability with the @gfold algorithm.
+
+- Use the Bevy game engine for its ECS (Entity Component System) @Anderson2024bevyengine and Rapier physics engine @Crozet2024dimforge to develop a basic simulation environment; this will involve a fundamental rocket entity that can be controlled through various inputs such as nozzle angle, thrust and reaction control thrusters while providing altitude, displacement and velocity metrics to the guidance algorithms.
+  - Potentially add disturbances and noisy sensor data to the simulation environment to test real-world behaviour of the algorithms and sensor filtering techniques.
 
 - Incorporate atmospheric variables into the simulation, such as wind shear, air density fluctuations, and drag, to test the algorithm's capabilities and robustness.
 
@@ -17,15 +22,19 @@
 - Create edge cases to test against, such as wind and potential mass shifts, to mimic real-world conditions and test reactions by different algorithms.
 
 == Development Plan
-1. Initial implementation of the G-FOLD algorithm, focusing on modular design and adherence to real-time constraints
 
-2. Initial implementation of the simulation environment using Bevy for creating a basic wireframe visualisation for landing trajectories and Rapier for realistic physics simulations.
+- [x] Initial implementation of the simulation environment using Bevy for creating a basic wireframe visualisation for landing trajectories and Rapier for realistic physics simulations.
 
-3. Integration of the G-FOLD algorithm with simulation environment to allow for testing against different scenarios.
+- [ ] Initial implementation of the @gfold algorithm, focusing on modular design and adherence to real-time constraints
 
-4. Conduct a detailed comparative analysis between G-FOLD and the reinforcement learning approach on pre-defined parameters like fuel efficiency and adaptability.
+- [ ] Develop a communication protocol between the simulation environment and the algorithms to allow for real-time two-way communication while decoupling the simulation from the algorithms.
 
-== Extras
-- Extensive documentation and reporting through a final year project report and code documentation.
+- [ ] Advanced atmospheric simulation integration of the simulation environment to truly test the robustness of the algorithms against real-world
 
-- Implement a CI/CD pipeline to automate the testing and notify of potential regressions during pull requests.
+- [ ] Integration of the @gfold algorithm with simulation environment to allow for testing against different scenarios.
+
+- [ ] Conduct a detailed comparative analysis between @gfold and the @rl approach on pre-defined parameters like fuel efficiency and adaptability.
+
+- [ ] Extensive documentation and reporting through a final year project report and code documentation.
+
+- [ ] Implement a CI/CD pipeline to automate the testing and notify of potential regressions during pull requests.
