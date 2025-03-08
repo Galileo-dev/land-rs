@@ -51,16 +51,36 @@
     short: "APDG",
     long: "Atmospheric Powered Descent Guidance",
   ),
+  (
+    key: "ecs",
+    short: "ECS",
+    long: "Entity Component System",
+  ),
+  (
+    key: "agc",
+    short: "AGC",
+    long: "Apollo Guidance Computer",
+  ),
+  (
+    key: "socp",
+    short: "SOCP",
+    long: "Second Order Cone Programming",
+  ),
+  (
+    key: "soc",
+    short: "SOC",
+    long: "Second Order Cone",
+  ),
 )
 
 #register-glossary(abbreviations)
 
-#show: codly-init.with()
-#codly(zebra-fill: none)
+#show: codly-init
+#codly(zebra-fill: none, languages: codly-languages)
 
 
 #set text(font: "Inter", size: 11pt, fill: rgb(51, 51, 51))
-#show raw: set text(font: "SF Mono", size: 10pt, fill: rgb(80, 80, 80))
+#show raw: set text(font: "Monaspace Argon", size: 10pt, fill: rgb(80, 80, 80))
 #set par(leading: 0.7em)
 
 // Table styling
@@ -131,8 +151,8 @@
 #include "./chapters/simulation.typ"
 #pagebreak()
 
-// #include "./chapters/convex_approch.typ"
-// #pagebreak()
+#include "./chapters/convex_approch.typ"
+#pagebreak()
 
 // #include "./chapters/rl_approach.typ"
 // #pagebreak()

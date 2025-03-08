@@ -3,7 +3,7 @@
 = Methodology
 
 == Approach
-- Implement the @gfold algorithm using the Rust praintaogramming language with Clarabel.rs for solving convex optimisation problems. This allows for real-time performance and mining memory safety, vital for onboard computations during rocket descent.
+- Implement the @gfold algorithm with optimisations from Fast Algorithm for Onboard Atmospheric Powered Descent Guidance @ChenYushu2023AFAf using Rust with Clarabel.rs as our convex solver. This will allow for real-time performance and memory safety, vital for onboard computations during rocket descent.
 
 - Implement a @rl approach using Pytorch to compare the performance and adaptability with the @gfold algorithm.
 

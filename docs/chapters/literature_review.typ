@@ -19,13 +19,20 @@ The first landing attempt must succeed; failure means vehicle destruction on imp
 === Hardware Limits
 A successful guidance system must compute divert trajectories without exceeding hardware capabilities or safety constraints. Large rocket engines have thrust constraints preventing hovering, requiring continuous descent to minimize propellant usage @blackmore2017.
 
-== G-FOLD Algorithm
-The @gfold algorithm addresses these challenges through lossless convexification, enabling real-time computation of fuel-optimal trajectories @GFOLD-foundation. While current implementations use Python to generate C code with CVXGEN @Mattingley2012, this mixed-language approach can introduce unsafe assumptions that might crash programs during critical phases like rocket descent.
+== Trajectory Optimization Approaches
+- *Polynomial guidence:* Used in the apollo program to land astornauts on the moon, trajectories are represented as polynomials parameterised by time, and while it is very efficent to compute enabling missions with very limited computation power, like that of the @agc,it also require precise coefficeients that are precomputed and stored @Klumpp1974 However it is not fuel optimal @Ross2004.
 
-@gfold currently solves @pdg, but @apdg is needed for bodies with atmospheres like Earth and Mars. Real-time @apdg solutions are achievable with runtimes around 0.6s on flight hardware @ChenYushu2023AFAf.
+- *Convex Optimization:* Used by SpaceX to land their Falcon9 1st stage and the new Starship 1st and 2nd stage. Convex optimization methods like @gfold are computationally efficient but require accurate models of the vehicle and their environment @G-FOLD2012.
+
+- *Reinforcement Learning:* Reinforcement learning methods like @rl are more robust but require extensive training and are computationally expensive @FURFARO2020156.
+
+=== G-FOLD Algorithm
+The @gfold algorithm operates through lossless convexification, enabling real-time computation of fuel-optimal trajectories @G-FOLD2012. While current implementations use Python to generate C code with CVXGEN @Mattingley2012, this mixed-language approach can introduce unsafe assumptions that might crash programs during critical phases like rocket descent.
+
+@gfold currently solves @pdg, but @apdg is needed for bodies with atmospheres like Earth and Mars. Real-time @apdg solutions are achievable with runtimes around 0.6s on flight hardware through successive convexification @ChenYushu2023AFAf.
 
 
-== Reinforcement Learning Algorithms
+=== Reinforcement Learning Algorithms
 @rl approaches combine classical ZEM/ZEV methods with @rl to improve fuel efficiency and constraint handling. While classical ZEM/ZEV algorithms work for precision landing, they struggle with thrust limits and glide slope constraints. Modern @rl solutions include:
 
 - *Actor-Critic Models:* These update parameters based on the lander state, allowing expansion to complex environments. Training in simulated Mars conditions helps encode terrain avoidance and glide slope constraints @FURFARO2020156.
