@@ -32,9 +32,9 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
 This @soc ensure that constraints like the thrust vector directions and nonlinear aerodynamic drag are satisfied.
 
-== Full convex optimization problem for atomospheric powered descent guidance
+== Full convex optimization problem (@apdg)
 
-The full convex optimization problem for the atomospheric powered descent guidance is as follows:
+The full convex optimization problem for the @apdg is as follows:
 
 $ min integral_0^t_f || T(t) || d t $ <objective_function>
 
