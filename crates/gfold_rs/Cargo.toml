@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clarabel = "0.10.0"
+thiserror = "2.0"
+bon = "3.4"
+
+# ------------------------------
+# enable latex in docs 
+# credit: https://github.com/victe/rust-latex-doc-minimal-example
+# ------------------------------
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", "./html/rustdocs-header.html"]
+features = ["sdp", "sdp-mkl"]
