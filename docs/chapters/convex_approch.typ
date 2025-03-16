@@ -5,38 +5,38 @@
 = Convex Optimisation Approach
 
 == Introduction
-The Fast Algorithm for Onboard Atmospheric Powered Descent Guidance @ChenYushu2023AFAf is an algorithm developed to efficiently compute the trajectories of a rocket during descent to course correct it to an optimal landing trajectory while considering various constraints. It does this through @socp which is a convex optimisation problem. We will implement this algorithm in this paper and compare it against the RL method. The core problem is to account for the high computational complexity of @apdg, which must be solved onboard a spacecraft in real-time.
+In this paper we implement and evaluate the paper Convex optimization solutions versus @rl solutions. For the convex optimization solutions this paper will implement Fast Algorithm for Onboard Atmospheric Powered Descent Guidance @ChenYushu2023AFAf an algorithm developed to efficiently compute the trajectories of a rocket during descent and course correct it to an optimal landing trajectory while considering various constraints from previous papers. It does this through exploiting the sparsity in the problem structure of @socp with successive convexification @Szmuk2016. The core problem is to account for the high computational complexity of @apdg, which must be solved onboard a spacecraft in real-time to allow it to correct for deviations from the planned optimal trajectory.
 
 == SOCP Problem Formulation
-The paper outlines the problem Formulation as minimising the fuel consumption while keeping safe and precise landing trajectories while under aerodynamic forces.
-The problem is formulated using @socp.
+// The paper outlines the problem Formulation as minimising the fuel consumption while keeping safe and precise landing trajectories while under aerodynamic forces.
+// The problem is formulated using @socp.
 
-The goal is to find the optimal thrust vector $A(t)$ that minimises the fuel consumption while keeping the rocket on a safe and precise landing trajectory. The general form of the problem is as follows:
+The goal is to find the optimal thrust vector $T(t)$ that minimises the fuel consumption while keeping the rocket on a safe and precise landing trajectory. The general form of the problem is as follows:
 
-// text{minimize} \quad c^T x
 $ min c^T x $
-// \text{subject to} \quad Ax = b, \quad x \in K
+
 $ "Subject to" quad A x = b, quad x in K $
 
 where:
 
 - $x$ is the decision variable (i.e position, velocity, mass and thrust).
 - $c^T x$ is the objective function
-- $A x = b$ representes the equality constraints (i.e. vehicle dynamics, fuel mass depletion, glide slope constraints, thrust constraints).
+- $A x = b$ represents the equality constraints (i.e. vehicle dynamics, fuel mass depletion, glide slope constraints, thrust constraints).
 - $K$ represents @soc:pl cone constraints that enforce the thrust direction, minimum glide slope, acceleration limits.
 
 The @soc are defined as:
 
-// K^n_S = \{ v \in \mathbb{R}^n \mid v_1 \geq \| v_{2:n} \| \}
 $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
-This @soc ensure that constraints like the thrust vector directions and nonlinear aerodynamic drag are satisfied.
+This @soc ensure that constraints like the thrust vector directions and non-linear aerodynamic drag are satisfied.
 
 == Full convex optimization problem (@apdg)
 
 The full convex optimization problem for the @apdg is as follows:
 
 $ min integral_0^t_f || T(t) || d t $ <objective_function>
+
+- Minimise the fuel consumption by minimising the thrust magnitude over time.
 
 === Vehicle Dynamics (Point-Mass Model)
 

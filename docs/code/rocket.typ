@@ -29,21 +29,25 @@ pub struct RocketEngine {
 ```
 
 
-The rocket engine is a Rigid Body cone connected to the rocket body through a spherical joint. The joint can act as a motor to control the rocket engine's pitch and yaw. Both the rocket body and the rocket engine have Collider components to interact with the physics simulation, However they are part of the same `CollisionGroups` so they don't collide with each other.
+The rocket engine is a `RigidBody` cone connected to the rocket body through a spherical joint. The joint can act as a motor to control the rocket engine's pitch and yaw. Both the rocket body and the rocket engine have `Collider` components to interact with the physics simulation, However they are part of the same `CollisionGroups` so they don't collide with each other.
+
+==== Spawn engine nozzle
+We initially spawn the engine nozzle just below the rocket body
+- For the rocket body we choose the bottom centre as the attachment point:\
+  ```rust
+  (0.0, -body_height / 2.0, 0.0).
+  ```
+- For the nozzle we choose the apex as it's attachment point:
+  ```rust
+  (0.0, nozzle_height / 2.0, 0.0).
+  ```
+
+  These anchor points are specified in each body's local coordinate system.
+
 
 ```rust
 
  commands.entity(rocket_body_id).add_child(nozzle_id);
-
-    // ----- Spawn engine nozzle -----
-    // We initially spawn the engine nozzle just below the rocket body
-    // - For the rocket body we choose the bottom centre as the attachment point:
-    //   (0.0, -body_height / 2.0, 0.0).
-    // - For the nozzle we choose the apex as it's attachment point:
-    //   (0.0, nozzle_height / 2.0, 0.0).
-    //
-    //   These anchor points are specified in each body's local coordinate system.
-    //
     let joint: SphericalJoint = SphericalJointBuilder::new()
         .limits(JointAxis::AngX, [-angle, angle])
         .limits(JointAxis::AngZ, [-angle, angle])
@@ -57,11 +61,18 @@ The rocket engine is a Rigid Body cone connected to the rocket body through a sp
         .motor_max_force(JointAxis::AngX, motor_max_force)
         .motor_max_force(JointAxis::AngZ, motor_max_force)
         .build();
+```
 
-    // Attach the joint from the nozzle to the rocket
+==== Attach the joint from the nozzle to the rocket
+```rust
+    let joint: SphericalJoint = SphericalJointBuilder::new()
+        //...
+        .build();
+
     commands
         .entity(nozzle_id)
         .insert(ImpulseJoint::new(rocket_body_id, joint));
+    }
 }
 ```
 
