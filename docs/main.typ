@@ -106,7 +106,7 @@
   degree: "Bachelor of Immersive Software Engineering",
   faculty: "Faculty of Science and Engineering",
   department: "Department of Computer Science",
-  date: datetime(year: 2025, month: 2, day: 18),
+  date: datetime(year: 2025, month: 5, day: 15),
 )
 
 // Use Main page stylings

@@ -19,15 +19,18 @@ gfold-rs = { path = "crates/gfold_rs" }
 
 
 # Error handling
-thiserror = "1"
+thiserror = "2"
 anyhow = "1"
 
 # Bevy
 bevy = { version = "0.15", features = ["dynamic_linking"] }
-bevy_rapier3d = { version = "0.28", features = [
+bevy_rapier3d = { version = "0.29", features = [
   "simd-stable",
   "debug-render-3d",
 ] }
-bevy-inspector-egui = { version = "0.28" }
+bevy-inspector-egui = { version = "0.30" }
 iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
-bon = "3.3.2"
+bon = "3.5"
+uom = "0.36"
+nalgebra = "0.33"
+clarabel = "0.10.0"

@@ -1,15 +1,18 @@
 #![allow(non_snake_case)]
 use bon::Builder;
 use clarabel::algebra::*;
+use clarabel::solver::traits::Solution;
 use clarabel::solver::*;
 use thiserror::Error;
+
+use super::Trajectory;
 
 /// 3D vector
 type Vector3<T> = [T; 3];
 
 /// Error codes returnable from incorrect trajectory inputs.
 #[derive(Error, Debug)]
-pub enum APDGError {
+pub enum Error {
     /// Landing site is not reachable.
     #[error("Landing site is not reachable.")]
     UnreachableLandingSite,
@@ -74,9 +77,9 @@ where
     T: FloatT,
 {
     /// Settings for the trajectory optimisation.
-    settings: APDGSettings<T>,
+    pub settings: APDGSettings<T>,
     /// Computed solution (state vectors over time).
-    pub solution: Option<Vec<T>>,
+    pub solution: Option<Trajectory>,
     /// Number of computation iterations required for convergence.
     pub iteration_count: Option<usize>,
     /// Final convergance error norm.
@@ -88,22 +91,33 @@ where
     T: FloatT,
 {
     /// Create a new APDG trajectory optimisation.
-    pub fn new(settings: APDGSettings<T>) -> Result<Self, APDGError> {
+    pub fn new(settings: APDGSettings<T>) -> Result<Self, Error> {
         // Sanity check for landing site
         _new_apdg(settings)
     }
 
     /// Generate a trajectory to the landing site.
-    pub fn solve(&mut self, settings: APDGSettings<T>) {
+    pub fn solve(&mut self, settings: APDGSettings<T>) -> Result<(), Error> {
         // bomb if landing site is unreachable
 
         // bomb if insufficient fuel
 
-        _solve(&settings);
+        match _solve(&settings) {
+            Ok(trajectory) => {
+                // Store the trajectory
+                self.solution = Some(trajectory.0);
+
+                // Store the number of iterations
+
+                // Store the convergence error
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
-fn _new_apdg<T: FloatT>(settings: APDGSettings<T>) -> Result<APDGTrajectory<T>, APDGError> {
+const fn _new_apdg<T: FloatT>(settings: APDGSettings<T>) -> Result<APDGTrajectory<T>, Error> {
     Ok(APDGTrajectory {
         settings,
         solution: None,
@@ -112,4 +126,8 @@ fn _new_apdg<T: FloatT>(settings: APDGSettings<T>) -> Result<APDGTrajectory<T>, 
     })
 }
 
-fn _solve<T: FloatT>(settings: &APDGSettings<T>) {}
+fn _solve<T: FloatT>(settings: &APDGSettings<T>) -> Result<DefaultSolution<Trajectory>, Error> {
+    // print settings
+    println!("Settings: {settings:?}");
+    Ok(DefaultSolution::new(1, 2))
+}

@@ -4,9 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clarabel = "0.10.0"
-thiserror = "2.0"
-bon = "3.4"
+clarabel = { workspace = true }
+thiserror = { workspace = true }
+bon = { workspace = true }
+nalgebra = { workspace = true }
+uom = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
 
 # ------------------------------
 # enable latex in docs 
