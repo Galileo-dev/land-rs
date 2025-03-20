@@ -33,4 +33,4 @@ iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3c
 bon = "3.5"
 uom = "0.36"
 nalgebra = "0.33"
-clarabel = "0.10.0"
+clarabel = "0"

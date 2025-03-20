@@ -104,9 +104,6 @@ where
 
         match _solve(&settings) {
             Ok(trajectory) => {
-                // Store the trajectory
-                self.solution = Some(trajectory.0);
-
                 // Store the number of iterations
 
                 // Store the convergence error
@@ -129,5 +126,6 @@ const fn _new_apdg<T: FloatT>(settings: APDGSettings<T>) -> Result<APDGTrajector
 fn _solve<T: FloatT>(settings: &APDGSettings<T>) -> Result<DefaultSolution<Trajectory>, Error> {
     // print settings
     println!("Settings: {settings:?}");
-    Ok(DefaultSolution::new(1, 2))
+    // Ok(DefaultSolution::new(1, 2))
+    unimplemented!()
 }
