@@ -18,23 +18,23 @@ fn main() {
 
     // Thrust parameters
     let I_sp = 300.0; // [s]          specific impulse
-    let T_min = 100.0; // [kN]          minimum thrust
-    let T_max = 250.0; // [kN]          maximum thrust
-    let Tdot_min = -100.0; // [kN/s]        minimum thrust rate
-    let Tdot_max = 100.0; // [kN/s]        maximum thrust rate
-    let gamma_0 = 175.0; // [kN]        initial thrust
+    let T_min = 100_000.0; // [N]          minimum thrust
+    let T_max = 250_000.0; // [N]          maximum thrust
+    let Tdot_min = -100_000.0; // [N/s]        minimum thrust rate
+    let Tdot_max = 100_000.0; // [N/s]        maximum thrust rate
+    let gamma_0 = 175_000.0; // [N]        initial thrust
 
     // Drag parameters
     let S_D = 10.0; // [m^2]        vehicle drag reference area
     let C_D = 1.0; //              drag coefficient
     let rho = 1.0; // [kg/m^3]     air density
     let A_nozzle = 0.1; // [m^2]        exit area of the rocket nozzle
-    let P_amb = 101_325.0; // [KPa]         ambient pressure
+    let P_amb = 100_000.0; // [Pa]         ambient pressure
 
     // Directional parameters
     let n_hat0 = [1.0, 0.0, 0.0]; //              initial normal vector
     let n_hatf = [1.0, 0.0, 0.0]; //              final normal vector
-    let e_hat_Tu = [0.0, 1.0, 0.0]; //              Up pointing unit vector
+    let e_hat_Tu = [1.0, 0.0, 0.0]; //              Up pointing unit vector
 
     // Safety parameters
     let theta_max = 15.0; // [°] max tilt angle from normal
@@ -46,8 +46,8 @@ fn main() {
     let v_f = [0.0, 0.0, 0.0]; // [m/s] desired final velocity
 
     // Some relationships
-    let alpha = 1.0 / I_sp * g_0; //  relates thrust to mass flow rate
-    let m_dot_bp = P_amb * A_nozzle / (I_sp * g_0); // Mass flow rate
+    let alpha = 1.0 / (I_sp * g_0); //  relates thrust to mass flow rate
+    let m_dot_bp = (P_amb * A_nozzle) / (I_sp * g_0); // Mass flow rate
 
     // Objective weights
     let w_mf = 1.0; // weight for final mass in cost
@@ -95,7 +95,7 @@ fn main() {
     //   kappa_{a,R}.
     //
     // [r(3) + v(3) + a(3) + m(1) + T(3),+ Gamma(1), + a_R(3), + kappa_{a,R}(1)]
-    let vars_per_step = 19;
+    let vars_per_step = 18;
     let n = N * vars_per_step;
 
     // Helpers for indexing
@@ -282,8 +282,8 @@ fn main() {
                     (idx_r(k + 1, i), 1.0),
                     (idx_r(k, i), -1.0),
                     (idx_v(k, i), -dt),
-                    (idx_a(k, i), dt * dt / 3.0),
-                    (idx_a(k + 1, i), dt * dt / 6.0),
+                    (idx_a(k, i), -dt * dt / 3.0),
+                    (idx_a(k + 1, i), -dt * dt / 6.0),
                 ],
                 0.0
             );
@@ -316,15 +316,15 @@ fn main() {
             // Original:
             //      a[k] = 1/mu[k] * (T[k] - 1/2 * p * S_D * C_D * s[k] * v[k]) + a_R[k] + g
             // Rearranged:
-            //      1/mu[k] * T[k] - 1/2 * mu[k] * p * S_D * C_D * s[k] * v[k] + a_r[k] - a[k] = -g
+            //      1/mu[k] * T[k] (- 1/2 * 1/mu[k] * p * S_D * C_D * s[k] * v[k] + a_r[k]) - a[k] = -g
             eq!(
                 &[
-                    (idx_T(k, i), 1.0 / mu(k)),
-                    (idx_v(k, i), -0.5 * rho * S_D * C_D * s(k)),
-                    (idx_a(k, i), -1.0),
-                    (idx_aR(k, i), 1.0),
+                    (idx_a(k, i), 1.0),
+                    (idx_aR(k, i), -1.0),
+                    (idx_T(k, i), -1.0 / mu(k)),
+                    (idx_v(k, i), 0.5 * rho * S_D * C_D * s(k) / mu(k)),
                 ],
-                -g_vec[i]
+                g_vec[i]
             );
         }
     }
@@ -424,7 +424,7 @@ fn main() {
     // Original:
     //      ||a_R[k]|| <= k_aR[k]
     // Rearranged:
-    //
+
     for k in 0..N {
         soc4!(
             (idx_kappa_aR(k), 1.0),
@@ -440,15 +440,27 @@ fn main() {
     // Convert to a CscMatrix and solve
     // ---------------------------------------------------
 
-    let A = CscMatrix::new_from_triplets(b.len(), n, Ai, Aj, Av);
+    // print out the number of rows and columns
+    println!("row_count: {}", row_count);
+    println!("n: {}", n);
+    println!("len of Ai: {}", Ai.len());
+    println!("len of Aj: {}", Aj.len());
+    println!("len of Av: {}", Av.len());
+    println!("len of b: {}", b.len());
+    println!("len of cones: {}", cones.len());
 
-    let settings = DefaultSettings::default();
+    let A: CscMatrix = CscMatrix::new_from_triplets(row_count, n, Ai, Aj, Av);
+
+    // Check the format of the matrix
+    assert!(P.check_format().is_ok());
+    assert!(A.check_format().is_ok());
+
+    let settings = DefaultSettingsBuilder::default()
+        .verbose(true)
+        .build()
+        .unwrap();
 
     let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
 
     solver.solve();
-
-    let sol = &solver.solution.x;
-    println!("Solver status: {:?}", solver.solution.status);
-    println!("Optimal objective value: {:.4}", solver.solution.obj_val);
 }
