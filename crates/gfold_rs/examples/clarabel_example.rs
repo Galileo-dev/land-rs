@@ -3,35 +3,53 @@
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use gfold_rs::modeling::Indexer;
 fn main() {
     // -------------------------------------------------------
     // 1) Specify vehicle and environmental parameters
     // -------------------------------------------------------
-    let I_sp = 300.0; // [s]          specific impulse
+
+    // Environmental parameters
     let g_0 = 9.807; // [m/s^2]      gravity
-    let m_0 = 10000.0; // [kg]         initial mass
-    let m_dry = 100.0; // [kg]         dry mass
+
+    // Vehicle parameters
+    let m_0 = 15_000.0; // [kg]         initial mass
+    let m_dry = 10_00.0; // [kg]         dry mass
+
+    // Thrust parameters
+    let I_sp = 300.0; // [s]          specific impulse
     let T_min = 100.0; // [N]          minimum thrust
     let T_max = 250.0; // [N]          maximum thrust
-    let Tdot_max = -100.0; // [N/s]        maximum thrust rate
-    let Tdot_min = 100.0; // [N/s]        minimum thrust rate
+    let Tdot_min = -100.0; // [N/s]        minimum thrust rate
+    let Tdot_max = 100.0; // [N/s]        maximum thrust rate
+    let gamma_0 = 170.0; // [kN]        initial thrust
+
+    // Drag parameters
+    let S_D = 10.0; // [m^2]        vehicle drag reference area
     let C_D = 1.0; //              drag coefficient
     let rho = 1.0; // [kg/m^3]     air density
-    let S_D = 10.0; // [m^2]         vehicle drag reference area
     let A_nozzle = 0.1; // [m^2]        exit area of the rocket nozzle
     let P_amb = 101_325.0; // [Pa]         ambient pressure
     let g_vec = [-g_0, 0.0, 0.0]; //              gravity vector
     let n_hat0 = [1.0, 0.0, 0.0]; //              initial normal vector
+    let n_hatf = [1.0, 0.0, 0.0]; //              final normal vector
+    let e_hat_Tu = [0.0, 1.0, 0.0]; //              Up pointing unit vector
+
+    // Safety parameters
+    let theta_max = 15.0; // [°] max tilt angle from normal
+    let gamma_gs = 80.0; // [°] glide slope angle
 
     // Supose we have the follow inital conditions
-    let r0 = [500.0, 500.0, 0.0]; // initial position
-    let v0 = [-50.0, 0.0, 50.0]; // initial velocity
-    let v_f = [0.0, 0.0, 0.0]; // desired final velocity
+    let r0 = [500.0, 500.0, 0.0]; // [m] initial position
+    let v0 = [-50.0, 0.0, 50.0]; // [m/s] initial velocity
+    let v_f = [0.0, 0.0, 0.0]; // [m/s] desired final velocity
 
     // Some relationships
     let alpha = 1.0 / I_sp * g_0; //  relates thrust to mass flow rate
     let m_dot_bp = P_amb * A_nozzle / (I_sp * g_0); // Mass flow rate
+
+    // Objective weights
+    let w_mf = 1.0; // weight for final mass in cost
+    let w_kappa_aR = 100.0; // penalty for large relaxations
 
     // -------------------------------------------------------
     // 2) Specify a time of flight guess, tf,s, and compute dt
@@ -41,10 +59,6 @@ fn main() {
     // Pick a final time guess tf and number of steps N
     let N = 30; // number of steps
     let mut tf_guess = 15.0; // [s] guess of total time of flight
-    let theta_max = 45.0_f64.to_radians(); // max tilt angle from normal
-    let k_aR = 1.0; // bound on ||a_R[k]||
-    let w_mf = 1.0; // weight for final mass in cost
-    let w_kappa_aR = 100.0; // penalty for large relaxations
     let dt = tf_guess / (N as f64); // uniform time step
 
     // Pre-computed values for Problem 4
@@ -59,8 +73,9 @@ fn main() {
     let s = |k: usize| {
         let k_n = N as f64;
         let k = k as f64;
-        ((k_n - k) / k_n) * (v0.iter().map(|&x| x * x).sum::<f64>().sqrt())
-            + (k / k_n) * v_f.iter().map(|&x| x * x).sum::<f64>().sqrt()
+        let v0_norm = (v0.iter().map(|&x| x * x).sum::<f64>()).sqrt();
+        let v_f_norm = (v_f.iter().map(|&x| x * x).sum::<f64>()).sqrt();
+        ((k_n - k) / k_n) * v0_norm + (k / k_n) * v_f_norm
     };
 
     // -------------------------------------------------------
@@ -78,7 +93,7 @@ fn main() {
     //   kappa_{a,R}.
     //
     // [r(3) + v(3) + a(3) + m(1) + T(3),+ Gamma(1), + a_R(3), + kappa_{a,R}(1)]
-    let vars_per_step = 18;
+    let vars_per_step = 19;
     let n = N * vars_per_step;
 
     // Helpers for indexing
@@ -89,7 +104,8 @@ fn main() {
     let idx_T = |k, i| k * vars_per_step + 10 + i; // i in [0..3)
     let idx_Gamma = |k| k * vars_per_step + 13;
     let idx_aR = |k, i| k * vars_per_step + 14 + i; // i in [0..3)
-    let idx_kappa = |k| k * vars_per_step + 17;
+    let idx_kappa_aR = |k| k * vars_per_step + 17;
+    let idx_z = |k| k * vars_per_step + 18; // aux variable for glide slope constraint
 
     // -------------------------------------------------------
     // Problem 4: Rocket Landing Optimal Control Problem
@@ -107,10 +123,6 @@ fn main() {
     //    Boundary Conditions, Dynamics, SOC Constraints
     // -------------------------------------------------
 
-    // Weighted objective
-    let w_mf = 1.0;
-    let w_kappa_aR = 100.0;
-
     // No quadratic term in the objective
     let P: CscMatrix<_> = CscMatrix::zeros((n, n));
 
@@ -119,7 +131,7 @@ fn main() {
     q[idx_m(N - 1)] = -w_mf; // Maximise the final mass
 
     for k in 0..N {
-        q[idx_kappa(k)] = w_kappa_aR; // Penalise relaxation
+        q[idx_kappa_aR(k)] = w_kappa_aR; // Penalise relaxation
     }
 
     // ---------------------------------------------------
@@ -130,8 +142,11 @@ fn main() {
         (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
     let mut row_count = 0;
 
+    /// Equality constraint
+    ///
+    /// Standard form:
+    /// sum (coefficients × variables) <= rhs
     macro_rules! eq {
-        // A single equality row: sum_i col_i * val_i = rhs
         ($cols:expr, $rhs:expr) => {{
             for &(c, v) in $cols.iter() {
                 Ai.push(row_count);
@@ -144,8 +159,11 @@ fn main() {
         }};
     }
 
+    /// Inequality constraint
+    ///
+    /// Standard form:
+    /// sum (coefficients × variables) <= rhs
     macro_rules! leq {
-        // A single linear inequality row: sum_i col_i * val_i <= rhs
         ($cols:expr, $rhs:expr) => {{
             for &(c, v) in $cols.iter() {
                 Ai.push(row_count);
@@ -158,23 +176,25 @@ fn main() {
         }};
     }
 
+    /// Second order cone constraint
+    ///
+    /// Standard form:
+    /// sqrt( x^2 + y^2 + z^2 ) <= t
     macro_rules! soc4 {
-        // Second-order cone in R^4: first 3 components (x,y,z), fourth is the "radius" or "Gamma"
-        ($xyz:expr, $gamma:expr) => {{
-            // $xyz is &[(col_x, val_x), (col_y, val_y), (col_z, val_z)]
+        ($tcol:expr, $xyz:expr) => {{
+            let (tc, tv) = $tcol;
+
+            Ai.push(row_count);
+            Aj.push(tc);
+            Av.push(tv);
+            b.push(0.0);
+
             for (i, &(c, v)) in $xyz.iter().enumerate() {
-                Ai.push(row_count + i);
+                Ai.push(row_count + 1 + i);
                 Aj.push(c);
                 Av.push(v);
                 b.push(0.0);
             }
-            // $gamma is (col_g, val_g)
-            let (cg, vg) = $gamma;
-            Ai.push(row_count + 3);
-            Aj.push(cg);
-            Av.push(vg);
-            b.push(0.0);
-
             cones.push(SecondOrderConeT(4));
             row_count += 4;
         }};
@@ -197,10 +217,10 @@ fn main() {
         eq!(&[(idx_v(0, i), 1.0)], v0[i]);
     }
 
-    // T[0] = Gamma[0] * n_hat0
+    // T[0] = Gamma_0 * n_hat0
     // n_hat0 is the initial normal vector
     for i in 0..3 {
-        eq!(&[(idx_T(0, i), 1.0), (idx_Gamma(0), -n_hat0[i])], 0.0);
+        eq!(&[(idx_T(0, i), 1.0)], gamma_0 * n_hat0[i]);
     }
 
     // ---------------------------------------------------
@@ -217,12 +237,12 @@ fn main() {
     }
 
     // Original:
-    //      T[N-1] = Gamma[N-1] * n_hat0
+    //      T[N-1] = Gamma[N-1] * n_hatf
     // Rearranged:
-    //      T[N-1] - Gamma[N-1] * n_hat0 = 0
+    //      T[N-1] - Gamma[N-1] * n_hatf = 0
     for i in 0..3 {
         eq!(
-            &[(idx_T(N - 1, i), 1.0), (idx_Gamma(N - 1), -n_hat0[i])],
+            &[(idx_T(N - 1, i), 1.0), (idx_Gamma(N - 1), -n_hatf[i])],
             0.0
         );
     }
@@ -313,9 +333,9 @@ fn main() {
 
     // Mass (Equation 67)
     // Original:
-    //      m_dry <= m[k]
+    //       m[k] >= m_dry
     // Rearranged:
-    //      m[k] - m_dry >= 0
+    //      -1 * m[k] <= -m_dry
     for k in 0..N {
         leq!(&[(idx_m(k), -1.0)], -m_dry);
     }
@@ -323,13 +343,100 @@ fn main() {
     // Thrust (Equation 68)
     // Original:
     //      ||T[k]|| <= Gamma[k]
-    // Rearranged:
     for k in 0..N {
         soc4!(
             (idx_Gamma(k), 1.0),
             &[(idx_T(k, 0), 1.0), (idx_T(k, 1), 1.0), (idx_T(k, 2), 1.0),]
         );
     }
+
+    // Max/Min thrust (Equation 71)
+    // Original:
+    //      T_min <= Gamma[k] <= T_max
+    // Rearranged:
+    //      -Gamma[k] <= -T_min
+    //      Gamma[k] <= T_max
+    for k in 0..N {
+        leq!(&[(idx_Gamma(k), -1.0)], -T_min);
+        leq!(&[(idx_Gamma(k), 1.0)], T_max);
+    }
+
+    // Glide-slope constraint (Equation 69):
+    // Original:
+    //      ||r[k]|| cos(gamma_gs) <= e_u^T * r[k]
+    // Rearranged:
+    //      ||r[k]|| <= (e_u^T * r[k]) / cos(gamma_gs)
+
+    let sec_gamma_gs = 1.0 / f64::to_radians(gamma_gs).cos();
+
+    for k in 0..N {
+        // introdce auxiliary variable z[k]
+        eq!(
+            &[
+                (idx_z(k), 1.0),
+                (idx_r(k, 0), -e_hat_Tu[0] * sec_gamma_gs),
+                (idx_r(k, 1), -e_hat_Tu[1] * sec_gamma_gs),
+                (idx_r(k, 2), -e_hat_Tu[2] * sec_gamma_gs),
+            ],
+            0.0
+        );
+
+        soc4!(
+            (idx_z(k), 1.0),
+            &[(idx_r(k, 0), 1.0), (idx_r(k, 1), 1.0), (idx_r(k, 2), 1.0),]
+        );
+    }
+
+    // Tilt constraint (Equation 72):
+    // Original:
+    //      Gamma[k] * cos(theta_max) <= e^T T[k].
+    // Rearranged:
+    //      −e_hat_T * T[k] + Gamma[k] * cos(θmax​) <= 0
+    for k in 0..N {
+        let mut cols = vec![];
+        for i in 0..3 {
+            cols.push((idx_T(k, i), -e_hat_Tu[i])); // -e_hat_T * T[k]
+        }
+        cols.push((idx_Gamma(k), f64::to_radians(theta_max).cos())); // Gamma[k] * cos(theta_max)
+        leq!(&cols, 0.0); // <= 0
+    }
+
+    // Rate of change of thrust (Equation 73):
+    // Original:
+    //      Tdot_min*dt <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt
+    // Rearranged:
+    //      Gamma[k+1] - Gamma[k] <= Tdot_max*dt
+    //      -Gamma[k+1] + Gamma[k] <= -Tdot_min*dt
+    for k in 0..(N - 1) {
+        leq!(
+            &[(idx_Gamma(k + 1), 1.0), (idx_Gamma(k), -1.0),],
+            Tdot_max * dt
+        );
+        leq!(
+            &[(idx_Gamma(k + 1), -1.0), (idx_Gamma(k), 1.0),],
+            -Tdot_min * dt
+        );
+    }
+
+    // SC Modifications
+    // Original:
+    //      ||a_R[k]|| <= k_aR[k]
+    // Rearranged:
+    //
+    for k in 0..N {
+        soc4!(
+            (idx_kappa_aR(k), 1.0),
+            &[
+                (idx_aR(k, 0), 1.0),
+                (idx_aR(k, 1), 1.0),
+                (idx_aR(k, 2), 1.0),
+            ]
+        );
+    }
+
+    // ---------------------------------------------------
+    // Convert to a CscMatrix and solve
+    // ---------------------------------------------------
 
     let A = CscMatrix::new_from_triplets(b.len(), n, Ai, Aj, Av);
 
