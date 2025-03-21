@@ -10,26 +10,28 @@ fn main() {
 
     // Environmental parameters
     let g_0 = 9.807; // [m/s^2]      gravity
+    let g_vec = [-g_0, 0.0, 0.0]; // [m/s^2]  gravity vector
 
     // Vehicle parameters
     let m_0 = 15_000.0; // [kg]         initial mass
-    let m_dry = 10_00.0; // [kg]         dry mass
+    let m_dry = 10_000.0; // [kg]         dry mass
 
     // Thrust parameters
     let I_sp = 300.0; // [s]          specific impulse
-    let T_min = 100.0; // [N]          minimum thrust
-    let T_max = 250.0; // [N]          maximum thrust
-    let Tdot_min = -100.0; // [N/s]        minimum thrust rate
-    let Tdot_max = 100.0; // [N/s]        maximum thrust rate
-    let gamma_0 = 170.0; // [kN]        initial thrust
+    let T_min = 100.0; // [kN]          minimum thrust
+    let T_max = 250.0; // [kN]          maximum thrust
+    let Tdot_min = -100.0; // [kN/s]        minimum thrust rate
+    let Tdot_max = 100.0; // [kN/s]        maximum thrust rate
+    let gamma_0 = 175.0; // [kN]        initial thrust
 
     // Drag parameters
     let S_D = 10.0; // [m^2]        vehicle drag reference area
     let C_D = 1.0; //              drag coefficient
     let rho = 1.0; // [kg/m^3]     air density
     let A_nozzle = 0.1; // [m^2]        exit area of the rocket nozzle
-    let P_amb = 101_325.0; // [Pa]         ambient pressure
-    let g_vec = [-g_0, 0.0, 0.0]; //              gravity vector
+    let P_amb = 101_325.0; // [KPa]         ambient pressure
+
+    // Directional parameters
     let n_hat0 = [1.0, 0.0, 0.0]; //              initial normal vector
     let n_hatf = [1.0, 0.0, 0.0]; //              final normal vector
     let e_hat_Tu = [0.0, 1.0, 0.0]; //              Up pointing unit vector
