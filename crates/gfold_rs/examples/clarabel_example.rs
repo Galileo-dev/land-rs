@@ -22,13 +22,13 @@ fn main() {
     let T_max = 250_000.0; // [N]          maximum thrust
     let Tdot_min = -100_000.0; // [N/s]        minimum thrust rate
     let Tdot_max = 100_000.0; // [N/s]        maximum thrust rate
-    let gamma_0 = 175_000.0; // [N]        initial thrust
+    let Gamma_0 = 175_000.0; // [N]        initial thrust
 
     // Drag parameters
     let S_D = 10.0; // [m^2]        vehicle drag reference area
     let C_D = 1.0; //              drag coefficient
     let rho = 1.0; // [kg/m^3]     air density
-    let A_nozzle = 0.1; // [m^2]        exit area of the rocket nozzle
+    let A_nozzle = 0.5; // [m^2]        exit area of the rocket nozzle
     let P_amb = 100_000.0; // [Pa]         ambient pressure
 
     // Directional parameters
@@ -94,20 +94,20 @@ fn main() {
     //   aR_x, aR_y, aR_z,
     //   kappa_{a,R}.
     //
-    // [r(3) + v(3) + a(3) + m(1) + T(3),+ Gamma(1), + a_R(3), + kappa_{a,R}(1)]
-    let vars_per_step = 18;
-    let n = N * vars_per_step;
+    // [r(3) + v(3) + a(3) + m(1) + T(3),+ Gamma(1), + a_R(3), + kappa_{a,R}(1) + z(1)]
+    let num_vars_per_step = 19;
+    let n = num_vars_per_step * N;
 
     // Helpers for indexing
-    let idx_r = |k, i| k * vars_per_step + i; // i in [0..3)
-    let idx_v = |k, i| k * vars_per_step + 3 + i; // i in [0..3)
-    let idx_a = |k, i| k * vars_per_step + 6 + i; // i in [0..3)
-    let idx_m = |k| k * vars_per_step + 9;
-    let idx_T = |k, i| k * vars_per_step + 10 + i; // i in [0..3)
-    let idx_Gamma = |k| k * vars_per_step + 13;
-    let idx_aR = |k, i| k * vars_per_step + 14 + i; // i in [0..3)
-    let idx_kappa_aR = |k| k * vars_per_step + 17;
-    let idx_z = |k| k * vars_per_step + 18; // aux variable for glide slope constraint
+    let idx_r = |k, i| k * num_vars_per_step + i; // [0..2]
+    let idx_v = |k, i| k * num_vars_per_step + 3 + i; // [3..5]
+    let idx_a = |k, i| k * num_vars_per_step + 6 + i; // [6..8]
+    let idx_m = |k| k * num_vars_per_step + 9; // [9]
+    let idx_T = |k, i| k * num_vars_per_step + 10 + i; // [10..12]
+    let idx_Gamma = |k| k * num_vars_per_step + 13; // [13]
+    let idx_aR = |k, i| k * num_vars_per_step + 14 + i; // [14..16]
+    let idx_kappa_aR = |k| k * num_vars_per_step + 17; // [17]
+    let idx_z = |k| k * num_vars_per_step + 18; // [18]
 
     // -------------------------------------------------------
     // Problem 4: Rocket Landing Optimal Control Problem
@@ -119,14 +119,14 @@ fn main() {
     // Penalise a large aR by adding w_aR * sum( kappa_{a,R}[k] )
     //
     // This makes our cost function:
-    //      min  - w_mf * m[N-1] + w_kappa * sum( kappa_{a,R}[k] ).
+    //      min  - w_mf * m[N-1] + kappa_aR * sum( kappa_{a,R}[k] ).
     //
     // s.t.
     //    Boundary Conditions, Dynamics, SOC Constraints
     // -------------------------------------------------
 
     // No quadratic term in the objective
-    let P: CscMatrix<_> = CscMatrix::zeros((n, n));
+    let P = CscMatrix::spalloc((n, n), 0);
 
     // Linear term in the objective
     let mut q = vec![0.; n];
@@ -183,7 +183,7 @@ fn main() {
     /// Standard form:
     /// sqrt( x^2 + y^2 + z^2 ) <= t
     macro_rules! soc4 {
-        ($tcol:expr, $xyz:expr) => {{
+        ($xyz:expr, $tcol:expr) => {{
             let (tc, tv) = $tcol;
 
             Ai.push(row_count);
@@ -222,8 +222,11 @@ fn main() {
     // T[0] = Gamma_0 * n_hat0
     // n_hat0 is the initial normal vector
     for i in 0..3 {
-        eq!(&[(idx_T(0, i), 1.0)], gamma_0 * n_hat0[i]);
+        eq!(&[(idx_T(0, i), 1.0)], Gamma_0 * n_hat0[i]);
     }
+
+    // Gamma[0] = Gamma_0
+    eq!(&[(idx_Gamma(0), 1.0)], Gamma_0);
 
     // ---------------------------------------------------
     // Final conditions
@@ -333,34 +336,13 @@ fn main() {
     // State constraints
     // ---------------------------------------------------
 
-    // Mass (Equation 67)
+    // Mass (Equation 68):
     // Original:
     //       m[k] >= m_dry
     // Rearranged:
     //      -1 * m[k] <= -m_dry
     for k in 0..N {
         leq!(&[(idx_m(k), -1.0)], -m_dry);
-    }
-
-    // Thrust (Equation 68)
-    // Original:
-    //      ||T[k]|| <= Gamma[k]
-    for k in 0..N {
-        soc4!(
-            (idx_Gamma(k), 1.0),
-            &[(idx_T(k, 0), 1.0), (idx_T(k, 1), 1.0), (idx_T(k, 2), 1.0),]
-        );
-    }
-
-    // Max/Min thrust (Equation 71)
-    // Original:
-    //      T_min <= Gamma[k] <= T_max
-    // Rearranged:
-    //      -Gamma[k] <= -T_min
-    //      Gamma[k] <= T_max
-    for k in 0..N {
-        leq!(&[(idx_Gamma(k), -1.0)], -T_min);
-        leq!(&[(idx_Gamma(k), 1.0)], T_max);
     }
 
     // Glide-slope constraint (Equation 69):
@@ -384,9 +366,38 @@ fn main() {
         );
 
         soc4!(
-            (idx_z(k), 1.0),
-            &[(idx_r(k, 0), 1.0), (idx_r(k, 1), 1.0), (idx_r(k, 2), 1.0),]
+            &[
+                (idx_r(k, 0), -1.0),
+                (idx_r(k, 1), -1.0),
+                (idx_r(k, 2), -1.0),
+            ],
+            (idx_z(k), -1.0)
         );
+    }
+
+    // Thrust (Equation 70)
+    // Original:
+    //      ||T[k]|| <= Gamma[k]
+    for k in 0..N {
+        soc4!(
+            &[
+                (idx_T(k, 0), -1.0),
+                (idx_T(k, 1), -1.0),
+                (idx_T(k, 2), -1.0),
+            ],
+            (idx_Gamma(k), -1.0)
+        );
+    }
+
+    // Max/Min thrust (Equation 71)
+    // Original:
+    //      T_min <= Gamma[k] <= T_max
+    // Rearranged:
+    //      -Gamma[k] <= -T_min
+    //      Gamma[k] <= T_max
+    for k in 0..N {
+        leq!(&[(idx_Gamma(k), -1.0)], -T_min);
+        leq!(&[(idx_Gamma(k), 1.0)], T_max);
     }
 
     // Tilt constraint (Equation 72):
@@ -427,12 +438,12 @@ fn main() {
 
     for k in 0..N {
         soc4!(
-            (idx_kappa_aR(k), 1.0),
             &[
-                (idx_aR(k, 0), 1.0),
-                (idx_aR(k, 1), 1.0),
-                (idx_aR(k, 2), 1.0),
-            ]
+                (idx_aR(k, 0), -1.0),
+                (idx_aR(k, 1), -1.0),
+                (idx_aR(k, 2), -1.0),
+            ],
+            (idx_kappa_aR(k), -1.0)
         );
     }
 
