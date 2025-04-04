@@ -3,6 +3,8 @@
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
+use plotters::prelude::*;
+
 fn main() {
     // -------------------------------------------------------
     // 1) Specify vehicle and environmental parameters
@@ -60,7 +62,7 @@ fn main() {
 
     // Pick a final time guess tf and number of steps N
     let N = 30; // number of steps
-    let mut tf_guess = 15.0; // [s] guess of total time of flight
+    let mut tf_guess = 50.0; // [s] guess of total time of flight
     let dt = tf_guess / (N as f64); // uniform time step
 
     // Pre-computed values for Problem 4
@@ -474,4 +476,40 @@ fn main() {
     let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
 
     solver.solve();
+
+    let trajectory: Vec<(f64, f64, f64)> = (0..N)
+        .map(|k| {
+            (
+                solver.solution.x[idx_r(k, 1)],
+                solver.solution.x[idx_r(k, 0)],
+                solver.solution.x[idx_r(k, 2)],
+            )
+        })
+        .collect();
+
+    let thrust_vectors: Vec<(f64, f64, f64)> = (0..N)
+        .map(|k| {
+            (
+                solver.solution.x[idx_T(k, 1)],
+                solver.solution.x[idx_T(k, 0)],
+                solver.solution.x[idx_T(k, 2)],
+            )
+        })
+        .collect();
+
+    let velocity: Vec<(f64, f64, f64)> = (0..N)
+        .map(|k| {
+            (
+                solver.solution.x[idx_v(k, 1)],
+                solver.solution.x[idx_v(k, 0)],
+                solver.solution.x[idx_v(k, 2)],
+            )
+        })
+        .collect();
+
+    // Print the different positions [3]
+
+    println!("Trajectory: {:?}", trajectory);
+    println!("Thrust Vectors: {:?}", thrust_vectors);
+    println!("Velocity: {:?}", velocity);
 }

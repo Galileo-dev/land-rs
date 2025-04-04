@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["crates/gfold_rs", "crates/land_sim"]
+members = ["crates/gfold_rs", "crates/land_sim", "crates/clarabel_opt"]
 
 resolver = "2" # Important! wgpu/Bevy needs this!
 
@@ -34,3 +34,5 @@ bon = "3.5"
 uom = "0.36"
 nalgebra = "0.33"
 clarabel = { git = "https://github.com/oxfordcontrol/Clarabel.rs", rev = "e0ed282" }
+plotters = "0.3.7"
+good_lp = "1.13.0"
