@@ -35,4 +35,10 @@ uom = "0.36"
 nalgebra = "0.33"
 clarabel = { git = "https://github.com/oxfordcontrol/Clarabel.rs", rev = "e0ed282" }
 plotters = "0.3.7"
-good_lp = "1.13.0"
+good_lp = { version = "1.13.0", default-features = false, features = [
+  "clarabel",
+] }
+
+
+[patch.crates-io]
+pathfinder_simd = { git = "https://github.com/theoparis/pathfinder.git" }
