@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["crates/gfold_rs", "crates/land_sim", "crates/clarabel_opt"]
+members = ["crates/gfold_rs", "crates/land_sim"]
 
 resolver = "2" # Important! wgpu/Bevy needs this!
 
