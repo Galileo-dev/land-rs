@@ -1,0 +1,297 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 801ece6..570f6e2 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -23,13 +23,7 @@ autobenches = false
+ description = " Mixed Integer Linear Programming for Rust, with an user-friendly API. This crate allows modeling LP problems, and lets you solve them with various solvers."
+ documentation = "https://docs.rs/good_lp"
+ readme = "README.md"
+-keywords = [
+-    "linear-programming",
+-    "optimization",
+-    "symbolic",
+-    "math",
+-    "solver",
+-]
++keywords = ["linear-programming", "optimization", "symbolic", "math", "solver"]
+ categories = [
+     "mathematics",
+     "algorithms",
+@@ -43,18 +37,8 @@ repository = "https://github.com/rust-or/good_lp"
+ [package.metadata.docs.rs]
+ all-features = false
+ default-target = "x86_64-unknown-linux-gnu"
+-features = [
+-    "coin_cbc",
+-    "microlp",
+-    "lpsolve",
+-    "highs",
+-    "lp-solvers",
+-    "clarabel",
+-]
+-rustdoc-args = [
+-    "--cfg",
+-    "docsrs",
+-]
++features = ["coin_cbc", "microlp", "lpsolve", "highs", "lp-solvers", "clarabel"]
++rustdoc-args = ["--cfg", "docsrs"]
+ targets = ["x86_64-unknown-linux-gnu"]
+ 
+ [features]
+@@ -68,10 +52,7 @@ all_default_solvers = [
+     "lp-solvers",
+     "clarabel",
+ ]
+-default = [
+-    "coin_cbc",
+-    "singlethread-cbc",
+-]
++default = ["clarabel"]
+ minilp = ["microlp"]
+ scip = ["russcip"]
+ scip_bundled = ["russcip?/bundled"]
+diff --git a/src/constraint.rs b/src/constraint.rs
+index 35b5ce6..3d5479c 100644
+--- a/src/constraint.rs
++++ b/src/constraint.rs
+@@ -4,21 +4,43 @@ use crate::variable::{FormatWithVars, Variable};
+ use core::fmt::{Debug, Formatter};
+ use std::ops::{Shl, Shr, Sub};
+ 
++#[derive(Clone, PartialEq)]
++
++/// The type of constraint
++pub enum ConstraintType {
++    /// The constraint is an equality `a == b`
++    Equality,
++    /// The constraint is an inequality `a <= b`
++    LessThanOrEqual,
++    /// The constraint is a second-order cone constraint `||x|| <= t`
++    SecondOrderCone,
++}
++
+ /// A constraint represents a single (in)equality that must hold in the solution.
+ pub struct Constraint {
+     /// The expression that is constrained to be null or negative
+-    pub(crate) expression: Expression,
+-    /// if is_equality, represents expression == 0, otherwise, expression <= 0
+-    pub(crate) is_equality: bool,
++    pub(crate) expressions: Vec<Expression>,
++    /// Kind of constraint
++    pub(crate) kind: ConstraintType,
+     /// Optional constraint name
+     pub(crate) name: Option<String>,
+ }
+ 
+ impl Constraint {
+-    fn new(expression: Expression, is_equality: bool) -> Constraint {
++    fn new(expressions: Vec<Expression>, kind: ConstraintType) -> Constraint {
++        if kind == ConstraintType::SecondOrderCone {
++            assert_eq!(
++                expressions.len(),
++                2,
++                "Second order cone constraints must have two expressions"
++            );
++        } else {
++            assert_eq!(expressions.len(), 1, "Constraints must have one expression");
++        }
++
+         Constraint {
+-            expression,
+-            is_equality,
++            expressions,
++            kind,
+             name: None,
+         }
+     }
+@@ -28,16 +50,53 @@ impl Constraint {
+         self.name = Some(name);
+         self
+     }
++
++    /// Should only store one expressions when using a linear constraint  
++    pub fn linear_expression(&self) -> &Expression {
++        assert_eq!(
++            self.expressions.len(),
++            1,
++            "Tried to treat a multi-expression constraint as linear!"
++        );
++        &self.expressions[0]
++    }
+ }
+ 
+ impl FormatWithVars for Constraint {
+-    fn format_with<FUN>(&self, f: &mut Formatter<'_>, variable_format: FUN) -> std::fmt::Result
++    fn format_with<FUN>(&self, f: &mut Formatter<'_>, mut variable_format: FUN) -> std::fmt::Result
+     where
+         FUN: FnMut(&mut Formatter<'_>, Variable) -> std::fmt::Result,
+     {
+-        self.expression.linear.format_with(f, variable_format)?;
+-        write!(f, " {} ", if self.is_equality { "=" } else { "<=" })?;
+-        write!(f, "{}", -self.expression.constant)
++        match self.kind {
++            ConstraintType::Equality | ConstraintType::LessThanOrEqual => {
++                let expr = &self.expressions[0];
++                expr.linear.format_with(f, &mut variable_format)?;
++                let op = if self.kind == ConstraintType::Equality {
++                    "="
++                } else {
++                    "<="
++                };
++                write!(f, " {} {} ", op, -expr.constant)
++            }
++            ConstraintType::SecondOrderCone => {
++                write!(f, "||")?;
++                let mut first = true;
++                for expr in &self.expressions[1..] {
++                    if first {
++                        first = false;
++                    } else {
++                        write!(f, " + ")?;
++                    }
++                    write!(f, "(")?;
++                    expr.linear.format_with(f, &mut variable_format)?;
++                    write!(f, ")^2")?;
++                }
++                write!(f, "|| <= ")?;
++                self.expressions[0]
++                    .linear
++                    .format_with(f, &mut variable_format)
++            }
++        }
+     }
+ }
+ 
+@@ -49,12 +108,12 @@ impl Debug for Constraint {
+ 
+ /// equals
+ pub fn eq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
+-    Constraint::new(a - b, true)
++    Constraint::new(vec![a - b], ConstraintType::Equality)
+ }
+ 
+ /// less than or equal
+ pub fn leq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
+-    Constraint::new(a - b, false)
++    Constraint::new(vec![a - b], ConstraintType::LessThanOrEqual)
+ }
+ 
+ /// greater than or equal
+@@ -62,6 +121,13 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
+     leq(b, a)
+ }
+ 
++/// Create a second-order cone constraint from multiple expressions.
++/// By specification, the first expression is the "t" or "head,"
++/// and the remaining are the "x" components in t >= sqrt(x_1^2 + ... + x_n^2).
++pub fn soc(expressions: Vec<Expression>) -> Constraint {
++    Constraint::new(expressions, ConstraintType::SecondOrderCone)
++}
++
+ macro_rules! impl_shifts {
+     ($($t:ty)*) => {$(
+         impl< RHS> Shl<RHS> for $t where Self: Sub<RHS, Output=Expression> {
+@@ -119,6 +185,9 @@ impl_shifts!(Expression Variable);
+ /// ```
+ #[macro_export]
+ macro_rules! constraint {
++    (|| $($inner:tt)* || => $($right:tt)*) => {
++        $crate::constraint::soc($($inner)*, $($right)*)
++    };
+     ([$($left:tt)*] <= $($right:tt)*) => {
+         $crate::constraint::leq($($left)*, $($right)*)
+     };
+diff --git a/src/expression.rs b/src/expression.rs
+index 7496fc2..a4ab4f3 100644
+--- a/src/expression.rs
++++ b/src/expression.rs
+@@ -9,6 +9,7 @@ use crate::variable::{FormatWithVars, Variable};
+ use crate::{Constraint, Solution};
+ 
+ /// An linear expression without a constant component
++#[derive(Clone, Debug)]
+ pub struct LinearExpression {
+     pub(crate) coefficients: HashMap<Variable, f64>,
+ }
+diff --git a/src/solvers/clarabel.rs b/src/solvers/clarabel.rs
+index 07c92ec..48a585c 100644
+--- a/src/solvers/clarabel.rs
++++ b/src/solvers/clarabel.rs
+@@ -1,6 +1,7 @@
+ //! A solver that uses [clarabel](https://oxfordcontrol.github.io/ClarabelDocs/stable/), a pure rust solver.
+ 
+ use crate::affine_expression_trait::IntoAffineExpression;
++use crate::constraint::ConstraintType;
+ use crate::expression::LinearExpression;
+ use crate::variable::UnsolvedProblem;
+ use crate::{
+@@ -121,24 +122,51 @@ impl SolverModel for ClarabelProblem {
+     }
+ 
+     fn add_constraint(&mut self, constraint: Constraint) -> ConstraintReference {
+-        self.constraints_matrix_builder
+-            .add_row(constraint.expression.linear);
+-        let index = self.constraint_values.len();
+-        self.constraint_values.push(-constraint.expression.constant);
+-        // Cones indicate the type of constraint. We only support nonnegative and equality constraints.
+-        // To avoid creating a new cone for each constraint, we merge them.
+-        let next_cone = if constraint.is_equality {
+-            ZeroConeT(1)
+-        } else {
+-            NonnegativeConeT(1)
+-        };
+-        let prev_cone = self.cones.last_mut();
+-        match (prev_cone, next_cone) {
+-            (Some(ZeroConeT(a)), ZeroConeT(b)) => *a += b,
+-            (Some(NonnegativeConeT(a)), NonnegativeConeT(b)) => *a += b,
+-            (_, next_cone) => self.cones.push(next_cone),
+-        };
+-        ConstraintReference { index }
++        match constraint.kind {
++            ConstraintType::Equality => {
++                let expr = constraint.linear_expression();
++                self.constraints_matrix_builder.add_row(expr.linear.clone());
++                self.constraint_values.push(-expr.constant);
++                // Merged into the ZeroCone
++                match self.cones.last_mut() {
++                    Some(SupportedConeT::ZeroConeT(ref mut size)) => {
++                        *size += 1;
++                    }
++                    _ => self.cones.push(SupportedConeT::ZeroConeT(1)),
++                }
++                // The row index is constraint_values.len()-1
++                ConstraintReference {
++                    index: self.constraint_values.len() - 1,
++                }
++            }
++            ConstraintType::LessThanOrEqual => {
++                let expr = constraint.linear_expression();
++                self.constraints_matrix_builder.add_row(expr.linear.clone());
++                self.constraint_values.push(-expr.constant);
++                // Merged into the NonnegativeCone
++                match self.cones.last_mut() {
++                    Some(SupportedConeT::NonnegativeConeT(ref mut size)) => {
++                        *size += 1;
++                    }
++                    _ => self.cones.push(SupportedConeT::NonnegativeConeT(1)),
++                }
++                ConstraintReference {
++                    index: self.constraint_values.len() - 1,
++                }
++            }
++            ConstraintType::SecondOrderCone => {
++                let dim = constraint.expressions.len();
++                // For each expression in the vec, add a row
++                let start_row = self.constraint_values.len();
++                for expr in &constraint.expressions {
++                    self.constraints_matrix_builder.add_row(expr.linear.clone());
++                    self.constraint_values.push(-expr.constant);
++                }
++                self.cones.push(SupportedConeT::SecondOrderConeT(dim));
++
++                ConstraintReference { index: start_row }
++            }
++        }
+     }
+ 
+     fn name() -> &'static str {

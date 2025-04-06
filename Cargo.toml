@@ -6,6 +6,8 @@ resolver = "2" # Important! wgpu/Bevy needs this!
 
 default-members = ["crates/land_sim"]
 
+exclude = ["./target/patch/good_lp-1.13.0"]
+
 [workspace.dependencies]
 
 #
@@ -40,5 +42,9 @@ good_lp = { version = "1.13.0", default-features = false, features = [
 ] }
 
 
+[workspace.metadata.patch]
+crates = ["good_lp"]
+
 [patch.crates-io]
 pathfinder_simd = { git = "https://github.com/theoparis/pathfinder.git" }
+good_lp = { path = "./target/patch/good_lp-1.13.0" }

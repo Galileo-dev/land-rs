@@ -28,6 +28,44 @@ pub struct SimulationParams {
     #[builder(default = 10_000.0)]
     pub m_dry: f64,
 
+    /// Initial total mass (dry mass + propellant)
+    /// [kg]
+    #[builder(default = 15_000.0)]
+    pub m_0: f64,
+
+    /// Initial position vector
+    /// [m]
+    #[builder(default = [500.0, 500.0, 0.0])]
+    pub r0: [f64; 3],
+
+    /// Final position vector
+    /// [m]
+    #[builder(default = [0.0, 0.0, 0.0])]
+    pub rf: [f64; 3],
+
+    /// Initial velocity vector
+    /// [m/s]
+    #[builder(default = [-50.0, 0.0, 50.0])]
+    pub v0: [f64; 3],
+
+    /// Final velocity vector
+    /// [m/s]
+    #[builder(default = [0.0, 0.0, 0.0])]
+    pub vf: [f64; 3],
+
+    /// Initial thrust guess
+    /// [N]
+    #[builder(default = 175_000.0)]
+    pub gamma_0_vac: f64,
+
+    /// Initial thrust direction unit vector
+    #[builder(default = [1.0, 0.0, 0.0])]
+    pub n_hat0: [f64; 3],
+
+    /// Final thrust direction unit vector
+    #[builder(default = [1.0, 0.0, 0.0])]
+    pub n_hatf: [f64; 3],
+
     /// Nozzle exit area
     /// [m^2]
     #[builder(default = 0.5)]
@@ -86,37 +124,13 @@ pub struct AlgorithmParams {
     #[builder(default = 15.0)]
     pub tf_guess: f64,
 
-    /// Initial total mass (dry mass + propellant)
-    /// [kg]
-    #[builder(default = 15_000.0)]
-    pub m_0: f64,
-
-    /// Initial position vector
-    /// [m]
-    #[builder(default = [500.0, 500.0, 0.0])]
-    pub r0: [f64; 3],
-
-    /// Initial velocity vector
-    /// [m/s]
-    #[builder(default = [-50.0, 0.0, 50.0])]
-    pub v0: [f64; 3],
-
-    /// Initial thrust guess
-    /// [N]
-    #[builder(default = 175_000.0)]
-    pub gamma_0_vac: f64,
-
-    /// Initial thrust direction unit vector
-    #[builder(default = [1.0, 0.0, 0.0])]
-    pub n_hat0: [f64; 3],
-
-    /// Final thrust direction unit vector
-    #[builder(default = [1.0, 0.0, 0.0])]
-    pub n_hatf: [f64; 3],
-
     /// Number of discretization points in the trajectory
     #[builder(default = 30)]
     pub N: usize,
+
+    /// Time step for the simulation
+    #[builder(default = tf_guess / (N as f64))]
+    pub dt: f64,
 
     /// Number of successive convexification iterations
     #[builder(default = 10)]
