@@ -1,5 +1,6 @@
 use good_lp::{
-    clarabel, constraint, variable, variables, Expression, ProblemVariables, SolverModel, Variable,
+    clarabel, constraint, soc_constraint, variable, variables, Expression, ProblemVariables,
+    SolverModel, Variable,
 };
 use nalgebra::Vector3;
 
@@ -290,5 +291,13 @@ fn add_state_constraints(
 
     // Glide-slope constraint
     // ||r[k]|| cos(gamma_gs) <= e_u^T * r[k]
-    // let sec_gamma_gs = 1.0 / f64::to_radians(gamma_gs).cos();
+    let sec_gamma_gs = 1.0 / f64::to_radians(params.gamma_gs).cos();
+    for k in 0..N - 1 {
+        // ||r[k]|| <= sec_gamma_gs * e_u^T * r[k]
+        for i in 0..3 {
+            model.add_constraint(soc_constraint!(
+                norm2(vars.r[k][i] + vars.r[k][i] + vars.r[k][i]) <= sec_gamma_gs * vars.r[k][i]
+            ));
+        }
+    }
 }

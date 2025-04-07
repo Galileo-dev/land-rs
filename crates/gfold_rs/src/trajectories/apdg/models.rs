@@ -66,6 +66,10 @@ pub struct SimulationParams {
     #[builder(default = [1.0, 0.0, 0.0])]
     pub n_hatf: [f64; 3],
 
+    /// Up pointing unit vector
+    #[builder(default = [1.0, 0.0, 0.0])]
+    pub e_hat_up: [f64; 3],
+
     /// Nozzle exit area
     /// [m^2]
     #[builder(default = 0.5)]

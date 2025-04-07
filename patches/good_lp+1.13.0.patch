@@ -51,7 +51,7 @@ index 801ece6..570f6e2 100644
  scip = ["russcip"]
  scip_bundled = ["russcip?/bundled"]
 diff --git a/src/constraint.rs b/src/constraint.rs
-index 35b5ce6..3d5479c 100644
+index 35b5ce6..b1305eb 100644
 --- a/src/constraint.rs
 +++ b/src/constraint.rs
 @@ -4,21 +4,43 @@ use crate::variable::{FormatWithVars, Variable};
@@ -104,7 +104,7 @@ index 35b5ce6..3d5479c 100644
              name: None,
          }
      }
-@@ -28,16 +50,53 @@ impl Constraint {
+@@ -28,16 +50,51 @@ impl Constraint {
          self.name = Some(name);
          self
      }
@@ -138,7 +138,7 @@ index 35b5ce6..3d5479c 100644
 +                } else {
 +                    "<="
 +                };
-+                write!(f, " {} {} ", op, -expr.constant)
++                write!(f, " {} {}", op, -expr.constant)
 +            }
 +            ConstraintType::SecondOrderCone => {
 +                write!(f, "||")?;
@@ -149,9 +149,7 @@ index 35b5ce6..3d5479c 100644
 +                    } else {
 +                        write!(f, " + ")?;
 +                    }
-+                    write!(f, "(")?;
 +                    expr.linear.format_with(f, &mut variable_format)?;
-+                    write!(f, ")^2")?;
 +                }
 +                write!(f, "|| <= ")?;
 +                self.expressions[0]
@@ -162,7 +160,7 @@ index 35b5ce6..3d5479c 100644
      }
  }
  
-@@ -49,12 +108,12 @@ impl Debug for Constraint {
+@@ -49,12 +106,12 @@ impl Debug for Constraint {
  
  /// equals
  pub fn eq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
@@ -177,7 +175,7 @@ index 35b5ce6..3d5479c 100644
  }
  
  /// greater than or equal
-@@ -62,6 +121,13 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
+@@ -62,6 +119,21 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
      leq(b, a)
  }
  
@@ -185,24 +183,101 @@ index 35b5ce6..3d5479c 100644
 +/// By specification, the first expression is the "t" or "head,"
 +/// and the remaining are the "x" components in t >= sqrt(x_1^2 + ... + x_n^2).
 +pub fn soc(expressions: Vec<Expression>) -> Constraint {
-+    Constraint::new(expressions, ConstraintType::SecondOrderCone)
++    assert!(
++        expressions.len() >= 2,
++        "SOC needs at least 2 expressions: [t, x1, x2, ...]"
++    );
++    Constraint {
++        expressions,
++        kind: ConstraintType::SecondOrderCone,
++        name: None,
++    }
 +}
 +
  macro_rules! impl_shifts {
      ($($t:ty)*) => {$(
          impl< RHS> Shl<RHS> for $t where Self: Sub<RHS, Output=Expression> {
-@@ -119,6 +185,9 @@ impl_shifts!(Expression Variable);
- /// ```
- #[macro_export]
- macro_rules! constraint {
-+    (|| $($inner:tt)* || => $($right:tt)*) => {
-+        $crate::constraint::soc($($inner)*, $($right)*)
-+    };
-     ([$($left:tt)*] <= $($right:tt)*) => {
-         $crate::constraint::leq($($left)*, $($right)*)
+@@ -128,7 +200,7 @@ macro_rules! constraint {
+     ([$($left:tt)*] == $($right:tt)*) => {
+         $crate::constraint::eq($($left)*, $($right)*)
      };
+-    // Stop condition: all token have been processed
++    // Stop condition: all tokens have been processed
+     ([$($left:tt)*]) => {
+         $($left:tt)*
+     };
+@@ -142,6 +214,17 @@ macro_rules! constraint {
+     };
+ }
+ 
++/// This macro define a second-order cone constraints using `norm(x) <= t` or `t >= norm(x)`
++#[macro_export]
++macro_rules! soc_constraint {
++    (norm2($($vars:tt)*) <= $($right:tt)+) => {
++        $crate::constraint::soc(vec![$($right)+, $($vars)*])
++    };
++    ($($left:tt)+ >= norm2($($vars:tt)*)) => {
++        $crate::constraint::soc(vec![$($left)+, $($vars)*])
++    };
++}
++
+ #[derive(Clone, PartialEq, Debug)]
+ /// A constraint reference contains the sequence id of the constraint within the problem
+ pub struct ConstraintReference {
+@@ -150,13 +233,47 @@ pub struct ConstraintReference {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use crate::variables;
++    use crate::{constraint, variable, variables};
+     #[test]
+     fn test_leq() {
+-        let mut vars = variables!();
++        let mut vars: crate::ProblemVariables = variables!();
+         let v0 = vars.add_variable();
+         let v1 = vars.add_variable();
+-        let f = format!("{:?}", (3. - v0) >> v1);
+-        assert!(["v0 + v1 <= 3", "v1 + v0 <= 3"].contains(&&*f), "{}", f)
++        let f: String = format!("{:?}", (3. - v0) >> v1);
++        assert!(["v0 + v1 <= 3", "v1 + v0 <= 3"].contains(&&*f), "{}", f);
++    }
++
++    #[test]
++    fn test_linear_leq() {
++        let mut vars = variables!();
++        let x = vars.add(variable());
++        let y = vars.add(variable());
++        let c = constraint!(x + y <= 5);
++        let expected = format!("{:?}", constraint::leq(x + y, 5));
++        let result: String = format!("{c:?}");
++
++        assert_eq!(result, expected);
++    }
++
++    #[test]
++    fn test_linear_geq() {
++        let mut vars = variables!();
++        let x = vars.add(variable());
++        let y = vars.add(variable());
++        let c = constraint!(x - y >= 2);
++        let expected = format!("{:?}", constraint::geq(x - y, 2));
++        let result: String = format!("{c:?}");
++
++        assert_eq!(result, expected);
++    }
++
++    #[test]
++    fn test_soc() {
++        let mut vars = variables!();
++        let v = vars.add_vector(variable(), 3);
++        let constraint = soc_constraint!(norm2(v[0] + v[1] + v[2]) <= v[1] * 3);
++        let expected = "||v1 + v0 + v2|| <= 3 v1";
++        let result = format!("{constraint:?}");
++        assert_eq!(result, expected);
+     }
+ }
 diff --git a/src/expression.rs b/src/expression.rs
-index 7496fc2..a4ab4f3 100644
+index 7496fc2..904aa0e 100644
 --- a/src/expression.rs
 +++ b/src/expression.rs
 @@ -9,6 +9,7 @@ use crate::variable::{FormatWithVars, Variable};
@@ -213,6 +288,14 @@ index 7496fc2..a4ab4f3 100644
  pub struct LinearExpression {
      pub(crate) coefficients: HashMap<Variable, f64>,
  }
+@@ -150,7 +151,6 @@ impl Expression {
+             constant: 0.0,
+         }
+     }
+-
+     /// Create a concrete expression struct from anything that has linear coefficients and a constant
+     ///
+     /// ```
 diff --git a/src/solvers/clarabel.rs b/src/solvers/clarabel.rs
 index 07c92ec..48a585c 100644
 --- a/src/solvers/clarabel.rs
