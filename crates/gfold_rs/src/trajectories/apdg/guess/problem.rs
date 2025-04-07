@@ -294,10 +294,12 @@ fn add_state_constraints(
     let sec_gamma_gs = 1.0 / f64::to_radians(params.gamma_gs).cos();
     for k in 0..N - 1 {
         // ||r[k]|| <= sec_gamma_gs * e_u^T * r[k]
-        for i in 0..3 {
-            model.add_constraint(soc_constraint!(
-                norm2(vars.r[k][i] + vars.r[k][i] + vars.r[k][i]) <= sec_gamma_gs * vars.r[k][i]
-            ));
-        }
+        let rhs = vars.r[k][0] * params.e_hat_up[0]
+            + vars.r[k][1] * params.e_hat_up[1]
+            + vars.r[k][2] * params.e_hat_up[2];
+
+        model.add_constraint(soc_constraint!(
+            norm2(vars.r[k][1] + vars.r[k][2] + vars.r[k][3]) <= sec_gamma_gs * rhs
+        ));
     }
 }

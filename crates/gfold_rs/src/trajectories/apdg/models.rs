@@ -1,4 +1,5 @@
 use bon::{builder, Builder};
+use nalgebra::Vector3;
 
 /// Simulation parameters (Table 1).
 #[derive(Debug, Builder, Clone)]
@@ -21,7 +22,7 @@ pub struct SimulationParams {
     /// Gravity vector
     /// [m/s^2]
     #[builder(default = [-9.807, 0.0, 0.0])]
-    pub g_vec: [f64; 3],
+    pub g_vec: Vector3<f64>,
 
     /// Dry mass of the vehicle
     /// [kg]
@@ -35,23 +36,23 @@ pub struct SimulationParams {
 
     /// Initial position vector
     /// [m]
-    #[builder(default = [500.0, 500.0, 0.0])]
-    pub r0: [f64; 3],
+    #[builder(default = [500.0, 500.0, 0.0].into())]
+    pub r0: Vector3<f64>,
 
     /// Final position vector
     /// [m]
-    #[builder(default = [0.0, 0.0, 0.0])]
-    pub rf: [f64; 3],
+    #[builder(default = [0.0, 0.0, 0.0].into())]
+    pub rf: Vector3<f64>,
 
     /// Initial velocity vector
     /// [m/s]
-    #[builder(default = [-50.0, 0.0, 50.0])]
-    pub v0: [f64; 3],
+    #[builder(default = [-50.0, 0.0, 50.0].into())]
+    pub v0: Vector3<f64>,
 
     /// Final velocity vector
     /// [m/s]
-    #[builder(default = [0.0, 0.0, 0.0])]
-    pub vf: [f64; 3],
+    #[builder(default = [0.0, 0.0, 0.0].into())]
+    pub vf: Vector3<f64>,
 
     /// Initial thrust guess
     /// [N]
@@ -59,16 +60,16 @@ pub struct SimulationParams {
     pub gamma_0_vac: f64,
 
     /// Initial thrust direction unit vector
-    #[builder(default = [1.0, 0.0, 0.0])]
-    pub n_hat0: [f64; 3],
+    #[builder(default = [1.0, 0.0, 0.0].into())]
+    pub n_hat0: Vector3<f64>,
 
     /// Final thrust direction unit vector
-    #[builder(default = [1.0, 0.0, 0.0])]
-    pub n_hatf: [f64; 3],
+    #[builder(default = [1.0, 0.0, 0.0].into())]
+    pub n_hatf: Vector3<f64>,
 
     /// Up pointing unit vector
-    #[builder(default = [1.0, 0.0, 0.0])]
-    pub e_hat_up: [f64; 3],
+    #[builder(default = [1.0, 0.0, 0.0].into())]
+    pub e_hat_up: Vector3<f64>,
 
     /// Nozzle exit area
     /// [m^2]
