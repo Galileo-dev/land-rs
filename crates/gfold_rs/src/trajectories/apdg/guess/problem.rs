@@ -31,34 +31,34 @@ pub struct APDGProblem<S: SolverModel> {
     solver: S,
 }
 
+// Store all decision variables for a single time step
+#[derive(Clone, Debug)]
+struct TimeStepVariables {
+    /// Position [m]
+    r: Vector3<Variable>,
+    /// Velocity [m/s]
+    v: Vector3<Variable>,
+    /// Acceleration [m/s^2]
+    a: Vector3<Variable>,
+    /// Mass [kg]
+    m: Variable,
+    /// Thrust [N]
+    t: Vector3<Variable>,
+    /// Thrust magnitude scalar [N]
+    gamma: Variable,
+    /// Acceleration relaxation term [m/s^2]
+    aR: Vector3<Variable>,
+    /// Relaxation slack []
+    kappa_aR: Variable,
+    /// Glide slope slack []
+    z: Variable,
+}
+
+// Store all decision variables for all time steps
+// Basically the global state
 struct DecisionVariables {
-    /// Position
-    /// [m]
-    r: Vec<Vector3<Variable>>,
-    /// Velocity
-    /// [m/s]
-    v: Vec<Vector3<Variable>>,
-    /// Acceleration
-    /// [m/s^2]
-    a: Vec<Vector3<Variable>>,
-    /// Mass
-    /// [kg]
-    m: Vec<Variable>,
-    /// Thrust
-    /// [N]
-    t: Vec<Vector3<Variable>>,
-    /// Angle of attack
-    /// [rad]
-    gamma: Vec<Variable>,
-    /// Angle of attack rate
-    /// [rad/s]
-    aR: Vec<Vector3<Variable>>,
-    /// Relaxation
-    /// []
-    kappa_aR: Vec<Variable>,
-    /// Glide slope slack
-    /// []
-    z: Vec<Variable>,
+    steps: Vec<TimeStepVariables>,
+    N: usize,
 }
 
 impl DecisionVariables {
@@ -70,18 +70,33 @@ impl DecisionVariables {
         )
     }
 
+    // Create variables in an interleaved order by time step
     fn new(vars: &mut good_lp::ProblemVariables, N: usize) -> Self {
-        DecisionVariables {
-            r: (0..N).map(|_| Self::fixed_vector(vars)).collect(),
-            v: (0..N).map(|_| Self::fixed_vector(vars)).collect(),
-            a: (0..N).map(|_| Self::fixed_vector(vars)).collect(),
-            m: (0..N).map(|_| vars.add_variable()).collect(),
-            t: (0..N).map(|_| Self::fixed_vector(vars)).collect(),
-            gamma: (0..N).map(|_| vars.add_variable()).collect(),
-            aR: (0..N).map(|_| Self::fixed_vector(vars)).collect(),
-            kappa_aR: (0..N).map(|_| vars.add_variable()).collect(),
-            z: (0..N).map(|_| vars.add_variable()).collect(),
+        let mut steps = Vec::with_capacity(N);
+        for _k in 0..N {
+            let r_k = Self::fixed_vector(vars); 
+            let v_k = Self::fixed_vector(vars);
+            let a_k = Self::fixed_vector(vars);
+            let m_k = vars.add_variable();
+            let t_k = Self::fixed_vector(vars);
+            let gamma_k = vars.add_variable();
+            let aR_k = Self::fixed_vector(vars);
+            let kappa_aR_k = vars.add_variable();
+            let z_k = vars.add_variable();
+
+            steps.push(TimeStepVariables {
+                r: r_k,
+                v: v_k,
+                a: a_k,
+                m: m_k,
+                t: t_k,
+                gamma: gamma_k,
+                aR: aR_k,
+                kappa_aR: kappa_aR_k,
+                z: z_k,
+            });
         }
+        DecisionVariables { steps, N }
     }
 }
 
@@ -143,15 +158,16 @@ fn setup_problem(
 
     let mut objective = Expression::default();
 
-    objective += -algo.w_mf * decision_variables.m[N - 1];
+    objective += -algo.w_mf * decision_variables.steps[N - 1].m;
     for k in 0..N {
-        // Add “+ w_k_a_R * kappa[k]” to objective
-        objective += algo.w_kappa_aR * decision_variables.kappa_aR[k];
+        objective += algo.w_kappa_aR * decision_variables.steps[k].kappa_aR;
     }
 
     let mut model = vars.minimise(objective).using(clarabel);
 
-    model.settings().verbose(true).tol_feas(1e-8);
+    model
+        .settings()
+        .verbose(true);
 
     (decision_variables, model)
 }
@@ -163,27 +179,27 @@ fn add_initial_constraints(
     params: &SimulationParams,
 ) {
     // Initial Mass m[0] = m_0
-    model.add_constraint(constraint!(vars.m[0] == params.m_0));
+    model.add_constraint(constraint!(vars.steps[0].m == params.m_0));
 
     // Initial Position r[0] = r_0
-    for (var, &r0) in vars.r[0].iter().zip(params.r0.iter()) {
+    for (var, &r0) in vars.steps[0].r.iter().zip(params.r0.iter()) {
         model.add_constraint(constraint!(*var == r0));
     }
 
     // Initial Velocity v[0] = v_0
 
-    for (var, &v0) in vars.v[0].iter().zip(params.v0.iter()) {
+    for (var, &v0) in vars.steps[0].v.iter().zip(params.v0.iter()) {
         model.add_constraint(constraint!(*var == v0));
     }
 
     // T[0] = Gamma_0 * n_hat0
     // n_hat0 is the initial normal vector
-    for (i, var) in vars.t[0].iter().enumerate() {
+    for (i, var) in vars.steps[0].t.iter().enumerate() {
         model.add_constraint(constraint!(*var == params.gamma_0_vac * params.n_hat0[i]));
     }
 
     // Gamma[0] = Gamma_0_vac
-    model.add_constraint(constraint!(vars.gamma[0] == params.gamma_0_vac));
+    model.add_constraint(constraint!(vars.steps[0].gamma == params.gamma_0_vac));
 }
 
 /// Add final condition constraints to the problem
@@ -196,19 +212,19 @@ fn add_final_constraints(
     let k_end = algo.N - 1;
 
     // Final position r[N-1] = rf
-    for (var, &rf_val) in vars.r[k_end].iter().zip(params.rf.iter()) {
+    for (var, &rf_val) in vars.steps[k_end].r.iter().zip(params.rf.iter()) {
         model.add_constraint(constraint!(*var == rf_val));
     }
 
     // Final velocity v[N-1] = vf
-    for (var, &vf_val) in vars.v[k_end].iter().zip(params.vf.iter()) {
+    for (var, &vf_val) in vars.steps[k_end].v.iter().zip(params.vf.iter()) {
         model.add_constraint(constraint!(*var == vf_val));
     }
 
     // Final thrust direction
     // T[N-1] = Gamma[N-1] * n_hatf
-    for (i, tf) in vars.t[k_end].iter().enumerate() {
-        model.add_constraint(constraint!(*tf == vars.gamma[k_end] * params.n_hatf[i]));
+    for (i, tf) in vars.steps[k_end].t.iter().enumerate() {
+        model.add_constraint(constraint!(*tf == vars.steps[k_end].gamma * params.n_hatf[i]));
     }
 }
 
@@ -255,9 +271,9 @@ fn add_dynamics_constraints(
         // Mass dynamics
         // m[k+1] = m[k] - [alpha/2 * (gamma[k] + gamma[k+1]) + m_dot_bp] * dt
         model.add_constraint(constraint!(
-            vars.m[k + 1]
-                == vars.m[k]
-                    - (alpha / 2.0 * (vars.gamma[k] + vars.gamma[k + 1]) * settings.dt)
+            vars.steps[k + 1].m
+                == vars.steps[k].m
+                    - (alpha / 2.0 * (vars.steps[k].gamma + vars.steps[k + 1].gamma) * settings.dt)
                     - (m_dot_bp * settings.dt)
         ));
 
@@ -265,11 +281,11 @@ fn add_dynamics_constraints(
         // r[k+1] = r[k] + v[k] * dt + 1/3 * (a[k] + 1/2*a[k+1]) * dt^2
         for i in 0..3 {
             model.add_constraint(constraint!(
-                vars.r[k + 1][i]
-                    == vars.r[k][i]
-                        + vars.v[k][i] * settings.dt
+                vars.steps[k + 1].r[i]
+                    == vars.steps[k].r[i]
+                        + vars.steps[k].v[i] * settings.dt
                         + (1.0 / 3.0)
-                            * (vars.a[k][i] + 0.5 * vars.a[k + 1][i])
+                            * (vars.steps[k].a[i] + 0.5 * vars.steps[k + 1].a[i])
                             * settings.dt.powi(2)
             ));
         }
@@ -278,8 +294,8 @@ fn add_dynamics_constraints(
         // v[k+1] = v[k] + 1/2 * (a[k] + a[k+1]) * dt
         for i in 0..3 {
             model.add_constraint(constraint!(
-                vars.v[k + 1][i]
-                    == vars.v[k][i] + 0.5 * (vars.a[k][i] + vars.a[k + 1][i]) * settings.dt
+                vars.steps[k + 1].v[i]
+                    == vars.steps[k].v[i] + 0.5 * (vars.steps[k].a[i] + vars.steps[k + 1].a[i]) * settings.dt
             ));
         }
 
@@ -287,11 +303,11 @@ fn add_dynamics_constraints(
         //a[k] = 1/mu[k] * (T[k] - 1/2 * rho * S_D * C_D * s[k] * v[k]) + a_R[k] + g
         for i in 0..3 {
             model.add_constraint(constraint!(
-                vars.a[k][i]
+                vars.steps[k].a[i]
                     == 1.0 / mu[k]
-                        * (vars.t[k][i]
-                            - 0.5 * params.rho * params.s_d * params.c_d * s[k] * vars.v[k][i])
-                        + vars.aR[k][i]
+                        * (vars.steps[k].t[i]
+                            - 0.5 * params.rho * params.s_d * params.c_d * s[k] * vars.steps[k].v[i])
+                        + vars.steps[k].aR[i]
                         + params.g_vec[i]
             ));
         }
@@ -311,7 +327,7 @@ fn add_state_constraints(
     for k in 0..N {
         // Mass lowerbound constraint
         // m[k] >= m_dry
-        model.add_constraint(constraint!(vars.m[k] >= params.m_dry));
+        model.add_constraint(constraint!(vars.steps[k].m >= params.m_dry));
     }
 
     // Glide-slope constraint
@@ -321,16 +337,14 @@ fn add_state_constraints(
     // z[k] = sec_gs * ( e_u^T * r[k] )
     let sec_gs = 1.0 / f64::to_radians(params.gamma_gs).cos();
     for k in 0..N {
-        let dot_e_r = params.e_hat_up.x * vars.r[k][0]
-            + params.e_hat_up.y * vars.r[k][1]
-            + params.e_hat_up.z * vars.r[k][2];
-
-        // z[k] = sec_gs * ( e_hat_up dot r[k] )
-        model.add_constraint(constraint!(vars.z[k] == sec_gs * dot_e_r));
-
-        // SoC: norm2(r[k]) <= z[k]
+        let t_expr = sec_gs * (
+              params.e_hat_up.x * vars.steps[k].r[0]
+            + params.e_hat_up.y * vars.steps[k].r[1]
+            + params.e_hat_up.z * vars.steps[k].r[2]
+        );
+        // Use the expression directly
         model.add_constraint(soc_constraint!(
-            norm2(vars.r[k][0], vars.r[k][1], vars.r[k][2]) <= vars.z[k]
+            norm2(vars.steps[k].r[0], vars.steps[k].r[1], vars.steps[k].r[2]) <= t_expr
         ));
     }
 
@@ -338,15 +352,15 @@ fn add_state_constraints(
     // ||T[k]|| <= Gamma[k]
     for k in 0..N {
         model.add_constraint(soc_constraint!(
-            norm2(vars.t[k][0], vars.t[k][1], vars.t[k][2]) <= vars.gamma[k]
+            norm2(vars.steps[k].t[0], vars.steps[k].t[1], vars.steps[k].t[2]) <= vars.steps[k].gamma
         ));
     }
 
     // Max/Min thrust (Equation 71)
     // T_min <= Gamma[k] <= T_max
     for k in 0..N {
-        model.add_constraint(constraint!(vars.gamma[k] >= params.t_min_vac));
-        model.add_constraint(constraint!(vars.gamma[k] <= params.t_max_vac));
+        model.add_constraint(constraint!(vars.steps[k].gamma >= params.t_min_vac));
+        model.add_constraint(constraint!(vars.steps[k].gamma <= params.t_max_vac));
     }
 
     // Tilt constraint (Equation 72):
@@ -354,21 +368,21 @@ fn add_state_constraints(
     // e_hat_up dot T[k] - Gamma[k]*cos(...) >= 0
     let cos_th = f64::to_radians(params.theta_max).cos();
     for k in 0..N {
-        let up_dot_t = params.e_hat_up.x * vars.t[k][0]
-            + params.e_hat_up.y * vars.t[k][1]
-            + params.e_hat_up.z * vars.t[k][2];
+        let up_dot_t = params.e_hat_up.x * vars.steps[k].t[0]
+            + params.e_hat_up.y * vars.steps[k].t[1]
+            + params.e_hat_up.z * vars.steps[k].t[2];
 
-        model.add_constraint(constraint!(up_dot_t >= cos_th * vars.gamma[k]));
+        model.add_constraint(constraint!(up_dot_t >= cos_th * vars.steps[k].gamma));
     }
 
     // Rate of change of thrust (Equation 73):
     // dot_min*dt <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt
     for k in 0..N - 1 {
         model.add_constraint(constraint!(
-            vars.gamma[k + 1] - vars.gamma[k] >= params.tdot_min * settings.dt
+            vars.steps[k + 1].gamma - vars.steps[k].gamma >= params.tdot_min * settings.dt
         ));
         model.add_constraint(constraint!(
-            vars.gamma[k + 1] - vars.gamma[k] <= params.tdot_max * settings.dt
+            vars.steps[k + 1].gamma - vars.steps[k].gamma <= params.tdot_max * settings.dt
         ));
     }
 }
@@ -384,7 +398,7 @@ fn add_slack_constraints(
         // SC Modifications
         // ||a_R[k]|| <= k_aR[k] }
         model.add_constraint(soc_constraint!(
-            norm2(vars.aR[k][0], vars.aR[k][1], vars.aR[k][2]) <= vars.kappa_aR[k]
+            norm2(vars.steps[k].aR[0], vars.steps[k].aR[1], vars.steps[k].aR[2]) <= vars.steps[k].kappa_aR
         ));
     }
 }
