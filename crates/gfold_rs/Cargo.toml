@@ -12,7 +12,6 @@ uom = { workspace = true }
 plotters = { workspace = true }
 good_lp = { workspace = true }
 
-
 [dev-dependencies]
 anyhow = { workspace = true }
 

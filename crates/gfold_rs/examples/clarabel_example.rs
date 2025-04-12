@@ -62,7 +62,7 @@ fn main() {
 
     // Pick a final time guess tf and number of steps N
     let N = 30; // number of steps
-    let mut tf_guess = 50.0; // [s] guess of total time of flight
+    let mut tf_guess = 15.0; // [s] guess of total time of flight
     let dt = tf_guess / (N as f64); // uniform time step
 
     // Pre-computed values for Problem 4

@@ -4,7 +4,12 @@ use good_lp::{
 };
 use nalgebra::Vector3;
 
-use crate::trajectories::apdg::models::{AlgorithmParams, SimulationParams};
+use crate::trajectories::{
+    apdg::models::{AlgorithmParams, SimulationParams},
+    ThrustVector, Trajectory,
+};
+
+use super::Error;
 
 // -------------------------------------------------------
 // Problem 4: Rocket Landing Optimal Control Problem
@@ -22,7 +27,7 @@ use crate::trajectories::apdg::models::{AlgorithmParams, SimulationParams};
 //    Boundary Conditions, Dynamics, SOC Constraints
 // -------------------------------------------------
 
-struct APDGProblem<S: SolverModel> {
+pub struct APDGProblem<S: SolverModel> {
     solver: S,
 }
 
@@ -81,17 +86,12 @@ impl DecisionVariables {
 }
 
 impl<S: SolverModel> APDGProblem<S> {
-    fn new(
+    pub fn new(
         sim_params: &SimulationParams,
         algo_params: &AlgorithmParams,
     ) -> APDGProblem<impl SolverModel> {
         let (decision_vars, model) = setup_problem(sim_params, algo_params);
         let mut problem = APDGProblem { solver: model };
-
-        // Some relationships
-        let alpha = 1.0 / (sim_params.i_sp * sim_params.g_0); //  relates thrust to mass flow rate
-        let m_dot_bp =
-            (sim_params.p_amb * sim_params.a_nozzle) / (sim_params.i_sp * sim_params.g_0); // Mass flow rate
 
         // Add initial constraints
         add_initial_constraints(&mut problem.solver, &decision_vars, sim_params);
@@ -108,13 +108,25 @@ impl<S: SolverModel> APDGProblem<S> {
             &decision_vars,
             sim_params,
             algo_params,
-            m_dot_bp,
-            alpha,
             mu,
             s,
         );
 
+        // Add state constraints
+        add_state_constraints(&mut problem.solver, &decision_vars, sim_params, algo_params);
+
+        // Add slack constraints
+        add_slack_constraints(&mut problem.solver, &decision_vars, sim_params, algo_params);
+
         problem
+    }
+
+    /// Solve the problem
+    pub fn solve(mut self) -> Result<Vec<Trajectory>, Error> {
+        // Run the solver
+        self.solver.solve();
+
+        Ok(vec![])
     }
 }
 
@@ -129,12 +141,17 @@ fn setup_problem(
 
     let mut decision_variables = DecisionVariables::new(&mut vars, N);
 
-    let mut model = vars
-        .minimise(
-            -algo.w_mf * decision_variables.m[N - 1]
-                + algo.w_kappa_aR * decision_variables.kappa_aR.iter().sum::<Expression>(),
-        )
-        .using(clarabel);
+    let mut objective = Expression::default();
+
+    objective += -algo.w_mf * decision_variables.m[N - 1];
+    for k in 0..N {
+        // Add “+ w_k_a_R * kappa[k]” to objective
+        objective += algo.w_kappa_aR * decision_variables.kappa_aR[k];
+    }
+
+    let mut model = vars.minimise(objective).using(clarabel);
+
+    model.settings().verbose(true).tol_feas(1e-8);
 
     (decision_variables, model)
 }
@@ -154,6 +171,7 @@ fn add_initial_constraints(
     }
 
     // Initial Velocity v[0] = v_0
+
     for (var, &v0) in vars.v[0].iter().zip(params.v0.iter()) {
         model.add_constraint(constraint!(*var == v0));
     }
@@ -173,22 +191,24 @@ fn add_final_constraints(
     model: &mut impl SolverModel,
     vars: &DecisionVariables,
     params: &SimulationParams,
-    settings: &AlgorithmParams,
+    algo: &AlgorithmParams,
 ) {
-    // Final position r[N-1] = r0
-    for (var, &r0) in vars.r[settings.N - 1].iter().zip(params.r0.iter()) {
-        model.add_constraint(constraint!(*var == r0));
+    let k_end = algo.N - 1;
+
+    // Final position r[N-1] = rf
+    for (var, &rf_val) in vars.r[k_end].iter().zip(params.rf.iter()) {
+        model.add_constraint(constraint!(*var == rf_val));
     }
 
-    // Final velocity v[N-1] = v0
-    for (var, &v0) in vars.v[settings.N - 1].iter().zip(params.v0.iter()) {
-        model.add_constraint(constraint!(*var == v0));
+    // Final velocity v[N-1] = vf
+    for (var, &vf_val) in vars.v[k_end].iter().zip(params.vf.iter()) {
+        model.add_constraint(constraint!(*var == vf_val));
     }
 
     // Final thrust direction
     // T[N-1] = Gamma[N-1] * n_hatf
-    for (var, &n_hatf) in vars.t[settings.N - 1].iter().zip(params.n_hatf.iter()) {
-        model.add_constraint(constraint!(*var == params.gamma_0_vac * n_hatf));
+    for (i, tf) in vars.t[k_end].iter().enumerate() {
+        model.add_constraint(constraint!(*tf == vars.gamma[k_end] * params.n_hatf[i]));
     }
 }
 
@@ -196,18 +216,18 @@ fn pre_compute(params: &SimulationParams, settings: &AlgorithmParams) -> (Vec<f6
     // Pre-computed values for Problem 4
     // mu[k] = ((k_n - k)/k_n)*m_0 + (k/k_n)*m_dry
     let mu = |k: usize| {
-        let k_n = settings.N as f64;
+        let kn = settings.N as f64;
         let k = k as f64;
-        ((k_n - k) / k_n) * params.m_0 + (k / k_n) * params.m_dry
+        ((kn - k) / kn) * params.m_0 + (k / kn) * params.m_dry
     };
 
     // s[k] = (k_n - k/k_n) ||v_0|| + (k/k_n) ||v_f||
     let s = |k: usize| {
-        let k_n = settings.N as f64;
+        let kn = settings.N as f64;
         let k = k as f64;
         let v0_norm = (params.v0.iter().map(|&x| x * x).sum::<f64>()).sqrt();
         let v_f_norm = (params.vf.iter().map(|&x| x * x).sum::<f64>()).sqrt();
-        ((k_n - k) / k_n) * v0_norm + (k / k_n) * v_f_norm
+        ((kn - k) / kn) * v0_norm + (k / kn) * v_f_norm
     };
 
     (
@@ -222,20 +242,23 @@ fn add_dynamics_constraints(
     vars: &DecisionVariables,
     params: &SimulationParams,
     settings: &AlgorithmParams,
-    m_dot_bp: f64,
-    alpha: f64,
     mu: Vec<f64>,
     s: Vec<f64>,
 ) {
     let N = settings.N;
+
+    // Some relationships
+    let alpha = 1.0 / (params.i_sp * params.g_0); //  relates thrust to mass flow rate
+    let m_dot_bp = (params.p_amb * params.a_nozzle) / (params.i_sp * params.g_0); // Mass flow rate
 
     for k in 0..N - 1 {
         // Mass dynamics
         // m[k+1] = m[k] - [alpha/2 * (gamma[k] + gamma[k+1]) + m_dot_bp] * dt
         model.add_constraint(constraint!(
             vars.m[k + 1]
-                == vars.m[k] - alpha / 2.0 * (vars.gamma[k] + vars.gamma[k + 1])
-                    + m_dot_bp * settings.dt
+                == vars.m[k]
+                    - (alpha / 2.0 * (vars.gamma[k] + vars.gamma[k + 1]) * settings.dt)
+                    - (m_dot_bp * settings.dt)
         ));
 
         // Position dynamics
@@ -245,7 +268,9 @@ fn add_dynamics_constraints(
                 vars.r[k + 1][i]
                     == vars.r[k][i]
                         + vars.v[k][i] * settings.dt
-                        + 1.0 / 3.0 * (vars.a[k][i] + 0.5 * vars.a[k + 1][i]) * settings.dt.powi(2)
+                        + (1.0 / 3.0)
+                            * (vars.a[k][i] + 0.5 * vars.a[k + 1][i])
+                            * settings.dt.powi(2)
             ));
         }
 
@@ -259,13 +284,13 @@ fn add_dynamics_constraints(
         }
 
         // Acceleration dynamics
-        //a[k] = 1/mu[k] * (T[k] - 1/2 * p_amb * S_D * C_D * s[k] * v[k]) + a_R[k] + g
+        //a[k] = 1/mu[k] * (T[k] - 1/2 * rho * S_D * C_D * s[k] * v[k]) + a_R[k] + g
         for i in 0..3 {
             model.add_constraint(constraint!(
                 vars.a[k][i]
                     == 1.0 / mu[k]
                         * (vars.t[k][i]
-                            - 0.5 * params.p_amb * params.s_d * params.c_d * s[k] * vars.v[k][i])
+                            - 0.5 * params.rho * params.s_d * params.c_d * s[k] * vars.v[k][i])
                         + vars.aR[k][i]
                         + params.g_vec[i]
             ));
@@ -283,7 +308,7 @@ fn add_state_constraints(
     let N = settings.N;
 
     // Add SOC constraints
-    for k in 0..N - 1 {
+    for k in 0..N {
         // Mass lowerbound constraint
         // m[k] >= m_dry
         model.add_constraint(constraint!(vars.m[k] >= params.m_dry));
@@ -291,15 +316,75 @@ fn add_state_constraints(
 
     // Glide-slope constraint
     // ||r[k]|| cos(gamma_gs) <= e_u^T * r[k]
-    let sec_gamma_gs = 1.0 / f64::to_radians(params.gamma_gs).cos();
-    for k in 0..N - 1 {
-        // ||r[k]|| <= sec_gamma_gs * e_u^T * r[k]
-        let rhs = vars.r[k][0] * params.e_hat_up[0]
-            + vars.r[k][1] * params.e_hat_up[1]
-            + vars.r[k][2] * params.e_hat_up[2];
+    // For Clarabel we need to use an aux variable z[k]
+    // ||r[k]|| <= z[k]
+    // z[k] = sec_gs * ( e_u^T * r[k] )
+    let sec_gs = 1.0 / f64::to_radians(params.gamma_gs).cos();
+    for k in 0..N {
+        let dot_e_r = params.e_hat_up.x * vars.r[k][0]
+            + params.e_hat_up.y * vars.r[k][1]
+            + params.e_hat_up.z * vars.r[k][2];
 
+        // z[k] = sec_gs * ( e_hat_up dot r[k] )
+        model.add_constraint(constraint!(vars.z[k] == sec_gs * dot_e_r));
+
+        // SoC: norm2(r[k]) <= z[k]
         model.add_constraint(soc_constraint!(
-            norm2(vars.r[k][1] + vars.r[k][2] + vars.r[k][3]) <= sec_gamma_gs * rhs
+            norm2(vars.r[k][0], vars.r[k][1], vars.r[k][2]) <= vars.z[k]
+        ));
+    }
+
+    // Thrust (Equation 70)
+    // ||T[k]|| <= Gamma[k]
+    for k in 0..N {
+        model.add_constraint(soc_constraint!(
+            norm2(vars.t[k][0], vars.t[k][1], vars.t[k][2]) <= vars.gamma[k]
+        ));
+    }
+
+    // Max/Min thrust (Equation 71)
+    // T_min <= Gamma[k] <= T_max
+    for k in 0..N {
+        model.add_constraint(constraint!(vars.gamma[k] >= params.t_min_vac));
+        model.add_constraint(constraint!(vars.gamma[k] <= params.t_max_vac));
+    }
+
+    // Tilt constraint (Equation 72):
+    // Gamma[k] * cos(theta_max) <= e^T T[k].
+    // e_hat_up dot T[k] - Gamma[k]*cos(...) >= 0
+    let cos_th = f64::to_radians(params.theta_max).cos();
+    for k in 0..N {
+        let up_dot_t = params.e_hat_up.x * vars.t[k][0]
+            + params.e_hat_up.y * vars.t[k][1]
+            + params.e_hat_up.z * vars.t[k][2];
+
+        model.add_constraint(constraint!(up_dot_t >= cos_th * vars.gamma[k]));
+    }
+
+    // Rate of change of thrust (Equation 73):
+    // dot_min*dt <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt
+    for k in 0..N - 1 {
+        model.add_constraint(constraint!(
+            vars.gamma[k + 1] - vars.gamma[k] >= params.tdot_min * settings.dt
+        ));
+        model.add_constraint(constraint!(
+            vars.gamma[k + 1] - vars.gamma[k] <= params.tdot_max * settings.dt
+        ));
+    }
+}
+
+/// Add the slack variable constraints
+fn add_slack_constraints(
+    model: &mut impl SolverModel,
+    vars: &DecisionVariables,
+    params: &SimulationParams,
+    settings: &AlgorithmParams,
+) {
+    for k in 0..settings.N {
+        // SC Modifications
+        // ||a_R[k]|| <= k_aR[k] }
+        model.add_constraint(soc_constraint!(
+            norm2(vars.aR[k][0], vars.aR[k][1], vars.aR[k][2]) <= vars.kappa_aR[k]
         ));
     }
 }

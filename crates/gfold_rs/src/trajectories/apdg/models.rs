@@ -21,7 +21,7 @@ pub struct SimulationParams {
 
     /// Gravity vector
     /// [m/s^2]
-    #[builder(default = [-9.807, 0.0, 0.0])]
+    #[builder(default = [-9.807, 0.0, 0.0].into())]
     pub g_vec: Vector3<f64>,
 
     /// Dry mass of the vehicle
