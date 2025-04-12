@@ -328,7 +328,7 @@ index 7496fc2..904aa0e 100644
      ///
      /// ```
 diff --git a/src/solvers/clarabel.rs b/src/solvers/clarabel.rs
-index 07c92ec..aba0e82 100644
+index 07c92ec..87df4a9 100644
 --- a/src/solvers/clarabel.rs
 +++ b/src/solvers/clarabel.rs
 @@ -1,6 +1,7 @@
@@ -339,7 +339,7 @@ index 07c92ec..aba0e82 100644
  use crate::expression::LinearExpression;
  use crate::variable::UnsolvedProblem;
  use crate::{
-@@ -121,24 +122,60 @@ impl SolverModel for ClarabelProblem {
+@@ -121,24 +122,65 @@ impl SolverModel for ClarabelProblem {
      }
  
      fn add_constraint(&mut self, constraint: Constraint) -> ConstraintReference {
@@ -401,15 +401,20 @@ index 07c92ec..aba0e82 100644
 +            ConstraintType::SecondOrderCone => {
 +                // If the constraint is SOC: [t, x1, x2, ...]
 +                // Then clarabel enforces sqrt(x1^2 + x2^2 + …) <= t
++                // Clarabels standard form for soc:
++                //      Ax + s = b, s in SOC.
++                // And -(Ax)_0 >= ||-(Ax)_{1..n}||.
 +                let dim = constraint.expressions.len();
 +                let start_row = self.constraint_values.len();
 +
 +                for expr in &constraint.expressions {
-+                    let row_linear = expr.linear.clone();
++                    let mut row_linear = expr.linear.clone();
 +                    let row_const = expr.constant;
-+                    // Add each row as is, no sign flipping:
++                    for coeff in row_linear.coefficients.values_mut() {
++                        *coeff = -*coeff;
++                    }
 +                    self.constraints_matrix_builder.add_row(row_linear);
-+                    self.constraint_values.push(row_const);
++                    self.constraint_values.push(-row_const);
 +                }
 +                self.cones.push(SupportedConeT::SecondOrderConeT(dim));
 +                ConstraintReference { index: start_row }
@@ -418,14 +423,14 @@ index 07c92ec..aba0e82 100644
      }
  
      fn name() -> &'static str {
-@@ -245,7 +282,13 @@ fn fast_flatten_vecs<T: Copy>(vecs: Vec<Vec<T>>) -> Vec<T> {
+@@ -245,7 +287,13 @@ fn fast_flatten_vecs<T: Copy>(vecs: Vec<Vec<T>>) -> Vec<T> {
      result
  }
  
 -#[cfg(test)]
 +// #[cfg(test)]
 +impl ClarabelProblem {
-+    #[must_use]
++    /// Test helper for inspecting the internal state of the problem definition
 +    pub fn test_inspect(&self) -> (&[f64], &[SupportedConeT<f64>]) {
 +        (&self.constraint_values, &self.cones)
 +    }
