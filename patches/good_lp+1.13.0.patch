@@ -62,10 +62,10 @@ index 801ece6..35f1621 100644
  name = "resource_allocation_problem"
  path = "tests/resource_allocation_problem.rs"
 diff --git a/src/constraint.rs b/src/constraint.rs
-index 35b5ce6..9b29dce 100644
+index 35b5ce6..2076ef4 100644
 --- a/src/constraint.rs
 +++ b/src/constraint.rs
-@@ -4,40 +4,108 @@ use crate::variable::{FormatWithVars, Variable};
+@@ -4,40 +4,110 @@ use crate::variable::{FormatWithVars, Variable};
  use core::fmt::{Debug, Formatter};
  use std::ops::{Shl, Shr, Sub};
  
@@ -167,7 +167,7 @@ index 35b5ce6..9b29dce 100644
 +            ConstraintType::SecondOrderCone => {
 +                write!(f, "||")?;
 +                let mut first = true;
-+                for expr in &self.expressions[1..] {
++                for expr in &self.expressions[..self.expressions.len() - 1] {
 +                    if first {
 +                        first = false;
 +                    } else {
@@ -176,7 +176,9 @@ index 35b5ce6..9b29dce 100644
 +                    expr.linear.format_with(f, &mut variable_format)?;
 +                }
 +                write!(f, "|| <= ")?;
-+                self.expressions[0]
++                self.expressions
++                    .last()
++                    .unwrap()
 +                    .linear
 +                    .format_with(f, &mut variable_format)
 +            }
@@ -184,7 +186,7 @@ index 35b5ce6..9b29dce 100644
      }
  }
  
-@@ -49,12 +117,12 @@ impl Debug for Constraint {
+@@ -49,12 +119,12 @@ impl Debug for Constraint {
  
  /// equals
  pub fn eq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
@@ -199,7 +201,7 @@ index 35b5ce6..9b29dce 100644
  }
  
  /// greater than or equal
-@@ -62,6 +130,22 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
+@@ -62,6 +132,22 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
      leq(b, a)
  }
  
@@ -222,7 +224,7 @@ index 35b5ce6..9b29dce 100644
  macro_rules! impl_shifts {
      ($($t:ty)*) => {$(
          impl< RHS> Shl<RHS> for $t where Self: Sub<RHS, Output=Expression> {
-@@ -128,7 +212,7 @@ macro_rules! constraint {
+@@ -128,7 +214,7 @@ macro_rules! constraint {
      ([$($left:tt)*] == $($right:tt)*) => {
          $crate::constraint::eq($($left)*, $($right)*)
      };
@@ -231,23 +233,19 @@ index 35b5ce6..9b29dce 100644
      ([$($left:tt)*]) => {
          $($left:tt)*
      };
-@@ -142,6 +226,23 @@ macro_rules! constraint {
+@@ -142,6 +228,19 @@ macro_rules! constraint {
      };
  }
  
-+/// This macro define a second-order cone constraints using `norm(x) <= t` or `t >= norm(x)`
++/// This macro define a second-order cone constraints using `norm(x) <= t`.
++/// Note: The `t >= norm2(...)` form is not supported instead rewrite it as `norm2(...) <= t`.
 +#[macro_export]
 +macro_rules! soc_constraint {
 +    (norm2($($vars:expr),+) <= $rhs:expr) => {
++        // Order: [x1, x2, ..., t]
 +        $crate::constraint::soc(vec![
-+            $crate::Expression::from($rhs),
-+            $( $crate::Expression::from($vars) ),+
-+        ])
-+    };
-+    ($lhs:tt >= norm2($($vars:expr),+)) => {
-+        $crate::constraint::soc(vec![
-+            $crate::Expression::from($lhs),
-+            $( $crate::Expression::from($vars) ),+
++            $( $crate::Expression::from($vars) ),+,
++            $crate::Expression::from($rhs)
 +        ])
 +    };
 +}
@@ -255,7 +253,7 @@ index 35b5ce6..9b29dce 100644
  #[derive(Clone, PartialEq, Debug)]
  /// A constraint reference contains the sequence id of the constraint within the problem
  pub struct ConstraintReference {
-@@ -150,13 +251,47 @@ pub struct ConstraintReference {
+@@ -150,13 +249,47 @@ pub struct ConstraintReference {
  
  #[cfg(test)]
  mod tests {
@@ -328,7 +326,7 @@ index 7496fc2..904aa0e 100644
      ///
      /// ```
 diff --git a/src/solvers/clarabel.rs b/src/solvers/clarabel.rs
-index 07c92ec..87df4a9 100644
+index 07c92ec..a30947b 100644
 --- a/src/solvers/clarabel.rs
 +++ b/src/solvers/clarabel.rs
 @@ -1,6 +1,7 @@
@@ -399,23 +397,23 @@ index 07c92ec..87df4a9 100644
 +            }
 +
 +            ConstraintType::SecondOrderCone => {
-+                // If the constraint is SOC: [t, x1, x2, ...]
-+                // Then clarabel enforces sqrt(x1^2 + x2^2 + …) <= t
-+                // Clarabels standard form for soc:
-+                //      Ax + s = b, s in SOC.
-+                // And -(Ax)_0 >= ||-(Ax)_{1..n}||.
++                // Clarabel standard form Ax + s = b, s in SOC means s = b - Ax, s_0 >= ||s_1...||.
++                // We need s_0 = t = Ct*x + dt and s_i = x_i = Coff_xi*x + dxi.
++                // The constraint.expressions vector is in the form [x1, ..., xn, t].
++                // Process t (last element) first
 +                let dim = constraint.expressions.len();
 +                let start_row = self.constraint_values.len();
-+
-+                for expr in &constraint.expressions {
-+                    let mut row_linear = expr.linear.clone();
++                for expr in constraint.expressions.iter().rev() {
 +                    let row_const = expr.constant;
-+                    for coeff in row_linear.coefficients.values_mut() {
-+                        *coeff = -*coeff;
-+                    }
-+                    self.constraints_matrix_builder.add_row(row_linear);
-+                    self.constraint_values.push(-row_const);
++                    self.constraints_matrix_builder.add_row_from_iter(
++                        expr.linear
++                            .coefficients
++                            .iter()
++                            .map(|(&var, &coeff)| (var, -coeff)),
++                    );
++                    self.constraint_values.push(row_const);
 +                }
++
 +                self.cones.push(SupportedConeT::SecondOrderConeT(dim));
 +                ConstraintReference { index: start_row }
 +            }
@@ -423,7 +421,27 @@ index 07c92ec..87df4a9 100644
      }
  
      fn name() -> &'static str {
-@@ -245,7 +287,13 @@ fn fast_flatten_vecs<T: Copy>(vecs: Vec<Vec<T>>) -> Vec<T> {
+@@ -211,6 +253,19 @@ impl CscMatrixBuilder {
+         }
+         self.n_rows += 1;
+     }
++
++    /// Adds a row to the matrix from an iterator of (Variable, coefficient) pairs.
++    fn add_row_from_iter<I>(&mut self, iter: I)
++    where
++        I: Iterator<Item = (Variable, f64)>,
++    {
++        for (var, value) in iter {
++            self.rowval[var.index()].push(self.n_rows);
++            self.nzval[var.index()].push(value);
++        }
++        self.n_rows += 1;
++    }
++
+     fn build(self) -> clarabel::algebra::CscMatrix {
+         let mut colptr = Vec::with_capacity(self.n_cols + 1);
+         colptr.push(0);
+@@ -245,7 +300,13 @@ fn fast_flatten_vecs<T: Copy>(vecs: Vec<Vec<T>>) -> Vec<T> {
      result
  }
  
