@@ -32,7 +32,8 @@ bevy_rapier3d = { version = "0.29", features = [
 ] }
 bevy-inspector-egui = { version = "0.30" }
 iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
-bon = "3.5"
+
+# convex optimisation
 uom = "0.36"
 nalgebra = "0.33"
 clarabel = { git = "https://github.com/oxfordcontrol/Clarabel.rs", rev = "e0ed282" }
@@ -40,6 +41,11 @@ plotters = "0.3.7"
 good_lp = { version = "1.13.0", default-features = false, features = [
   "clarabel",
 ] }
+
+# Utilities
+bon = "3.5"
+autodiff = { version = "0.7", features = ["na"] }
+num-traits = "0.2"
 
 
 [workspace.metadata.patch]

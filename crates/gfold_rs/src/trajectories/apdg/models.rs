@@ -124,12 +124,12 @@ pub struct SimulationParams {
 /// Boundary Conditions and Algorithm parameters
 #[derive(Debug, Builder, Clone)]
 pub struct AlgorithmParams {
-    /// t_f,s [s] – Initial guess for total flight time
-    /// (Table 2: tf,s = 15 s)
+    /// Initial guess for total flight time
+    /// [s]
     #[builder(default = 15.0)]
     pub tf_guess: f64,
 
-    /// Number of discretization points in the trajectory
+    /// Number of discretisation points in the trajectory
     #[builder(default = 30)]
     pub N: usize,
 
@@ -149,11 +149,15 @@ pub struct AlgorithmParams {
     #[builder(default = 0.0001)]
     pub w_eta_dt: f64,
 
-    /// Weight on thrust penalty
+    /// Weight on trust region ||eta_T||
     #[builder(default = 0.0001)]
     pub w_eta_T: f64,
 
-    /// Weight on angle-of-attack regularization
+    /// Weight on angle-of-attack regularisation
     #[builder(default = 100.0)]
     pub w_kappa_aR: f64,
+
+    /// Convergence tolerance for the SC loop (relative difference)
+    #[builder(default = 1e-4)]
+    pub sc_tolerance: f64,
 }

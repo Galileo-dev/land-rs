@@ -1,27 +1,20 @@
+use super::Error;
+use crate::trajectories::{
+    apdg::models::{AlgorithmParams, SimulationParams},
+    APDGSolution, APDGSolutionTimeStep,
+};
+use autodiff::F;
 use good_lp::{
     clarabel, constraint, soc_constraint, variable, variables, Constraint, Expression,
     ProblemVariables, Solution, SolutionStatus, SolverModel, Variable,
 };
 use nalgebra::Vector3;
 
-use crate::trajectories::{
-    apdg::models::{AlgorithmParams, SimulationParams},
-    APDGSolution, APDGSolutionTimeStep,
-};
-
-use super::Error;
-
 // -------------------------------------------------------
-// Problem 4: Rocket Landing Optimal Control Problem
-// First Solve Convexification Step
+// Problem 5: Rocket Landing Optimal Control Problem
+// Successive Convexification Step
 //
-// Problem formulation:
-//      min  final mass => -m[N-1] in the linear term
-//
-// Penalise a large aR by adding w_aR * sum( kappa_{a,R}[k] )
-//
-// This makes our cost function:
-//      min  - w_mf * m[N-1] + kappa_aR * sum( kappa_{a,R}[k] ).
+//     min -w_mf * m[kf] + w_eta_dt * eta_dt + w_eta_T * ||eta_T|| + w_kappa_aR * ||kappa_aR||
 //
 // s.t.
 //    Boundary Conditions, Dynamics, SOC Constraints
@@ -30,6 +23,7 @@ use super::Error;
 pub struct APDGProblem {
     sim_params: SimulationParams,
     algo_params: AlgorithmParams,
+    prev_trajectory: APDGSolution,
 }
 
 // Store all decision variables for a single time step
@@ -51,6 +45,8 @@ pub struct TimeStepVariables {
     aR: Vector3<Variable>,
     /// Relaxation slack []
     kappa_aR: Variable,
+    /// Trust region slack for thrust T[k]
+    eta_T: Variable, // Represents ηT[k] from Eq. 93
 }
 
 // Store all decision variables for all time steps
@@ -58,6 +54,14 @@ pub struct TimeStepVariables {
 struct DecisionVariables {
     steps: Vec<TimeStepVariables>,
     N: usize,
+    /// Time step duration [s]
+    dt: Variable,
+    /// Trust region slack variable for dt
+    eta_dt: Variable,
+    /// Auxiliary variable for L2 norm of eta_T (||ηT|| from Eq. 58)
+    norm_eta_T: Variable,
+    /// Auxiliary variable for L2 norm of kappa_aR (||κa,R|| from Eq. 59)
+    norm_kappa_aR: Variable,
 }
 
 impl DecisionVariables {
@@ -81,6 +85,7 @@ impl DecisionVariables {
             let gamma_k = vars.add_variable();
             let aR_k = Self::fixed_vector(vars);
             let kappa_aR_k = vars.add_variable();
+            let eta_T_k = vars.add_variable();
 
             steps.push(TimeStepVariables {
                 r: r_k,
@@ -91,17 +96,37 @@ impl DecisionVariables {
                 gamma: gamma_k,
                 aR: aR_k,
                 kappa_aR: kappa_aR_k,
+                eta_T: eta_T_k,
             });
         }
-        DecisionVariables { steps, N }
+
+        // Add the global variables
+        let dt_var = vars.add_variable();
+        let eta_dt_var = vars.add_variable();
+        let norm_eta_T_var = vars.add_variable();
+        let norm_kappa_aR_var = vars.add_variable();
+
+        DecisionVariables {
+            steps,
+            N,
+            dt: dt_var,
+            eta_dt: eta_dt_var,
+            norm_eta_T: norm_eta_T_var,
+            norm_kappa_aR: norm_kappa_aR_var,
+        }
     }
 }
 
 impl APDGProblem {
-    pub fn new(sim_params: SimulationParams, algo_params: AlgorithmParams) -> APDGProblem {
+    pub fn new(
+        sim_params: SimulationParams,
+        algo_params: AlgorithmParams,
+        prev_trajectory: APDGSolution,
+    ) -> APDGProblem {
         APDGProblem {
             sim_params,
             algo_params,
+            prev_trajectory,
         }
     }
 
@@ -121,17 +146,13 @@ impl APDGProblem {
             &self.algo_params,
         );
 
-        // Pre-compute values for Problem 4
-        let (mu, s) = pre_compute(&self.sim_params, &self.algo_params);
-
         // Add dynamics constraints
-        add_dynamics_constraints(
+        add_linearised_dynamics_constraints(
             &mut model,
             &decision_vars,
             &self.sim_params,
             &self.algo_params,
-            &mu,
-            &s,
+            &self.prev_trajectory,
         );
 
         // Add state constraints
@@ -140,6 +161,7 @@ impl APDGProblem {
             &decision_vars,
             &self.sim_params,
             &self.algo_params,
+            &self.prev_trajectory,
         );
 
         // Add slack constraints
@@ -158,7 +180,8 @@ impl APDGProblem {
         match solution.status() {
             SolutionStatus::Optimal => {
                 let N = self.algo_params.N;
-                let dt = self.algo_params.dt;
+                // Get the optimized dt from the solution
+                let dt_sol = solution.value(decision_vars.dt);
                 let mut steps_solution = Vec::with_capacity(N);
 
                 for k in 0..N {
@@ -187,6 +210,7 @@ impl APDGProblem {
                     );
                     let gamma_sol = solution.value(step_vars.gamma);
 
+                    // Populate using the expected APDGSolutionTimeStep struct
                     steps_solution.push(APDGSolutionTimeStep {
                         r: r_sol,
                         v: v_sol,
@@ -198,7 +222,7 @@ impl APDGProblem {
                 }
                 Ok(APDGSolution {
                     steps: steps_solution,
-                    dt,
+                    dt: dt_sol,
                 })
             }
             _ => Err(Error::SolverError(format!(
@@ -220,25 +244,14 @@ fn setup_problem(
 
     let decision_variables = DecisionVariables::new(&mut vars, N);
 
-    let norm_kappa_aR_var = vars.add_variable();
-
     let mut objective = Expression::default();
-    // Minimize: -w_mf * m[N-1] + w_kappa_aR * ||kappa_aR||
+    // Minimise: -w_mf * m[kf] + w_eta_dt * eta_dt + w_eta_T * ||eta_T|| + w_kappa_aR * ||kappa_aR||
     objective += -algo.w_mf * decision_variables.steps[N - 1].m;
-    objective += algo.w_kappa_aR * norm_kappa_aR_var;
+    objective += algo.w_eta_dt * decision_variables.eta_dt;
+    objective += algo.w_eta_T * decision_variables.norm_eta_T;
+    objective += algo.w_kappa_aR * decision_variables.norm_kappa_aR;
 
     let mut model = vars.minimise(objective).using(clarabel);
-
-    // Add SOC constraint: ||kappa_aR|| <= norm_kappa_aR
-    let kappa_aR_vars: Vec<Variable> = decision_variables
-        .steps
-        .iter()
-        .map(|s| s.kappa_aR)
-        .collect();
-    model.add_constraint(constraint!(norm_kappa_aR_var >= 0.0));
-    model.add_constraint(soc_constraint!(
-        norm2_vec(kappa_aR_vars) <= norm_kappa_aR_var
-    ));
 
     model.settings();
 
@@ -302,105 +315,15 @@ fn add_final_constraints(
     }
 }
 
-fn pre_compute(params: &SimulationParams, settings: &AlgorithmParams) -> (Vec<f64>, Vec<f64>) {
-    // Pre-computed values for Problem 4
-    // mu[k] = ((k_n - k)/k_n)*m_0 + (k/k_n)*m_dry
-    let mu_fn = |k: usize| {
-        let kn = settings.N as f64;
-        let k_f64 = k as f64;
-        ((kn - k_f64) / kn) * params.m_0 + (k_f64 / kn) * params.m_dry
-    };
-
-    // s[k] = (k_n - k/k_n) ||v_0|| + (k/k_n) ||v_f||
-    let s_fn = |k: usize| {
-        let kn = settings.N as f64;
-        let k_f64 = k as f64;
-        let v0_norm = params.v0.norm();
-        let v_f_norm = params.vf.norm();
-        ((kn - k_f64) / kn) * v0_norm + (k_f64 / kn) * v_f_norm
-    };
-
-    (
-        (0..settings.N).map(mu_fn).collect(),
-        (0..settings.N).map(s_fn).collect(),
-    )
-}
-
-/// Add the discretized dynamics contraints
-fn add_dynamics_constraints(
+/// Add the linearised dynamics contraints
+fn add_linearised_dynamics_constraints(
     model: &mut impl SolverModel,
     vars: &DecisionVariables,
     params: &SimulationParams,
     settings: &AlgorithmParams,
-    mu: &[f64],
-    s: &[f64],
+    prev_trajectory: &APDGSolution,
 ) {
-    let N = settings.N;
-
-    // Some relationships
-    let alpha = 1.0 / (params.i_sp * params.g_0); //  relates thrust to mass flow rate
-    let m_dot_bp = (params.p_amb * params.a_nozzle) / (params.i_sp * params.g_0); // Mass flow rate
-
-    for k in 0..N - 1 {
-        // Mass dynamics
-        // m[k+1] = m[k] - [alpha/2 * (gamma[k] + gamma[k+1]) + m_dot_bp] * dt
-        model.add_constraint(constraint!(
-            vars.steps[k + 1].m
-                == vars.steps[k].m
-                    - (alpha / 2.0 * (vars.steps[k].gamma + vars.steps[k + 1].gamma) * settings.dt)
-                    - (m_dot_bp * settings.dt)
-        ));
-
-        // Position dynamics
-        // r[k+1] = r[k] + v[k] * dt + 1/3 * (a[k] + 1/2*a[k+1]) * dt^2
-        for i in 0..3 {
-            model.add_constraint(constraint!(
-                vars.steps[k + 1].r[i]
-                    == vars.steps[k].r[i]
-                        + vars.steps[k].v[i] * settings.dt
-                        + (1.0 / 3.0)
-                            * (vars.steps[k].a[i] + 0.5 * vars.steps[k + 1].a[i])
-                            * settings.dt.powi(2)
-            ));
-        }
-
-        // Velocity dynamics
-        // v[k+1] = v[k] + 1/2 * (a[k] + a[k+1]) * dt
-        for i in 0..3 {
-            model.add_constraint(constraint!(
-                vars.steps[k + 1].v[i]
-                    == vars.steps[k].v[i]
-                        + 0.5 * (vars.steps[k].a[i] + vars.steps[k + 1].a[i]) * settings.dt
-            ));
-        }
-    }
-
-    // Acceleration dynamics
-    //a[k] = 1/mu[k] * (T[k] - 1/2 * rho * S_D * C_D * s[k] * v[k]) + a_R[k] + g
-    for k in 0..N {
-        if k < mu.len() && k < s.len() {
-            for i in 0..3 {
-                model.add_constraint(constraint!(
-                    vars.steps[k].a[i]
-                        == 1.0 / mu[k]
-                            * (vars.steps[k].t[i]
-                                - 0.5
-                                    * params.rho
-                                    * params.s_d
-                                    * params.c_d
-                                    * s[k]
-                                    * vars.steps[k].v[i])
-                            + vars.steps[k].aR[i]
-                            + params.g_vec[i]
-                ));
-            }
-        } else {
-            eprintln!(
-                "Warning: Index {} out of bounds for mu/s arrays in dynamics constraints.",
-                k
-            );
-        }
-    }
+    todo!("Add the linearised dynamics constraints");
 }
 
 /// Add the state constraints
@@ -409,8 +332,11 @@ fn add_state_constraints(
     vars: &DecisionVariables,
     params: &SimulationParams,
     settings: &AlgorithmParams,
+    prev_trajectory: &APDGSolution,
 ) {
     let N = settings.N;
+    let dt_bar = prev_trajectory.dt;
+    let dt_i = settings.dt;
 
     // Add SOC constraints
     for k in 0..N {
@@ -442,8 +368,23 @@ fn add_state_constraints(
         ));
     }
 
+    // Thrust Trust Region ||T[k] - T_bar[k]|| <= eta_T[k]
+    for k in 0..N {
+        let step_k_bar = &prev_trajectory.steps[k];
+        let t_bar_k = step_k_bar.t;
+        let current_t_k = vars.steps[k].t;
+        let delta_t_x = current_t_k[0] - t_bar_k.x;
+        let delta_t_y = current_t_k[1] - t_bar_k.y;
+        let delta_t_z = current_t_k[2] - t_bar_k.z;
+
+        let eta_T_k_var = vars.steps[k].eta_T;
+
+        model.add_constraint(soc_constraint!(
+            norm2(delta_t_x, delta_t_y, delta_t_z) <= eta_T_k_var
+        ));
+    }
+
     // Max/Min thrust (Equation 71)
-    // T_min <= Gamma[k] <= T_max
     for k in 0..N {
         model.add_constraint(constraint!(vars.steps[k].gamma >= params.t_min_vac));
         model.add_constraint(constraint!(vars.steps[k].gamma <= params.t_max_vac));
@@ -461,16 +402,35 @@ fn add_state_constraints(
         model.add_constraint(constraint!(up_dot_t >= cos_th * vars.steps[k].gamma));
     }
 
-    // Rate of change of thrust (Equation 73):
-    // dot_min*dt <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt
+    // Rate of change of thrust (Equation 73/91):
+    // dot_min*dt_i <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt_i
     for k in 0..N - 1 {
         model.add_constraint(constraint!(
-            vars.steps[k + 1].gamma - vars.steps[k].gamma >= params.tdot_min * settings.dt
+            vars.steps[k + 1].gamma - vars.steps[k].gamma >= params.tdot_min * dt_i
         ));
         model.add_constraint(constraint!(
-            vars.steps[k + 1].gamma - vars.steps[k].gamma <= params.tdot_max * settings.dt
+            vars.steps[k + 1].gamma - vars.steps[k].gamma <= params.tdot_max * dt_i
         ));
     }
+
+    // Time Step Trust Region
+    // (dt - dt_bar)^2 <= eta_dt
+    model.add_constraint(constraint!(vars.eta_dt >= 0.0)); // Ensure slack is non-negative
+    model.add_constraint(constraint!(vars.dt - dt_bar <= vars.eta_dt));
+    model.add_constraint(constraint!(vars.dt - dt_bar >= -vars.eta_dt));
+
+    // Trust Region Constraints
+    // ||eta_T|| <= norm_eta_T
+    let eta_T_vars: Vec<Variable> = vars.steps.iter().map(|s| s.eta_T).collect();
+    model.add_constraint(constraint!(vars.norm_eta_T >= 0.0));
+    model.add_constraint(soc_constraint!(norm2_vec(eta_T_vars) <= vars.norm_eta_T));
+
+    // Constraint for ||kappa_aR|| <= norm_kappa_aR
+    let kappa_aR_vars: Vec<Variable> = vars.steps.iter().map(|s| s.kappa_aR).collect();
+    model.add_constraint(constraint!(vars.norm_kappa_aR >= 0.0));
+    model.add_constraint(soc_constraint!(
+        norm2_vec(kappa_aR_vars) <= vars.norm_kappa_aR
+    ));
 }
 
 /// Add the slack variable constraints
