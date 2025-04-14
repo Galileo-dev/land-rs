@@ -4,10 +4,7 @@ use autodiff::F;
 use good_lp::constraint;
 use good_lp::variable;
 use good_lp::{Expression, Variable};
-use nalgebra::ComplexField;
 use nalgebra::Vector3;
-use std::borrow::Cow;
-
 type F64 = F<f64, f64>;
 
 /// Builds a good_lp::Expression representing the first-order Taylor expansion
