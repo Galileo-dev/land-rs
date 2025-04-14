@@ -29,6 +29,8 @@ pub struct APDGSolutionTimeStep {
     t: Vector3<f64>,
     /// Thrust magnitude [N]
     gamma: f64,
+    /// Acceleration relaxation term [m/s^2]
+    aR: Vector3<f64>,
 }
 
 /// A complete APDG solution

@@ -186,6 +186,11 @@ impl APDGProblem {
                         solution.value(step_vars.t[2]),
                     );
                     let gamma_sol = solution.value(step_vars.gamma);
+                    let aR_sol = Vector3::new(
+                        solution.value(step_vars.aR[0]),
+                        solution.value(step_vars.aR[1]),
+                        solution.value(step_vars.aR[2]),
+                    );
 
                     steps_solution.push(APDGSolutionTimeStep {
                         r: r_sol,
@@ -194,6 +199,7 @@ impl APDGProblem {
                         m: m_sol,
                         t: t_sol,
                         gamma: gamma_sol,
+                        aR: aR_sol,
                     });
                 }
                 Ok(APDGSolution {

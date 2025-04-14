@@ -1,4 +1,7 @@
-use super::Error;
+use super::{
+    taylor_expansion::{build_taylor_expression, F64},
+    Error,
+};
 use crate::trajectories::{
     apdg::models::{AlgorithmParams, SimulationParams},
     APDGSolution, APDGSolutionTimeStep,
@@ -8,7 +11,8 @@ use good_lp::{
     clarabel, constraint, soc_constraint, variable, variables, Constraint, Expression,
     ProblemVariables, Solution, SolutionStatus, SolverModel, Variable,
 };
-use nalgebra::Vector3;
+use nalgebra::{DVector, Vector3};
+use num_traits::real::Real;
 
 // -------------------------------------------------------
 // Problem 5: Rocket Landing Optimal Control Problem
@@ -209,6 +213,11 @@ impl APDGProblem {
                         solution.value(step_vars.t[2]),
                     );
                     let gamma_sol = solution.value(step_vars.gamma);
+                    let aR_sol = Vector3::new(
+                        solution.value(step_vars.aR[0]),
+                        solution.value(step_vars.aR[1]),
+                        solution.value(step_vars.aR[2]),
+                    );
 
                     // Populate using the expected APDGSolutionTimeStep struct
                     steps_solution.push(APDGSolutionTimeStep {
@@ -218,6 +227,7 @@ impl APDGProblem {
                         m: m_sol,
                         t: t_sol,
                         gamma: gamma_sol,
+                        aR: aR_sol,
                     });
                 }
                 Ok(APDGSolution {
@@ -323,7 +333,121 @@ fn add_linearised_dynamics_constraints(
     settings: &AlgorithmParams,
     prev_trajectory: &APDGSolution,
 ) {
-    todo!("Add the linearised dynamics constraints");
+    let N = settings.N;
+
+    let alpha = 1.0 / (params.i_sp * params.g_0);
+    let m_dot_bp = (params.p_amb * params.a_nozzle) / (params.i_sp * params.g_0);
+
+    for k in 0..N - 1 {
+        let prev_step_k = &prev_trajectory.steps[k];
+        let prev_step_k1 = &prev_trajectory.steps[k + 1];
+        let prev_dt = prev_trajectory.dt;
+
+        // Mass dynamics
+        let fm_func = |psi_vec: &DVector<F64>| -> F64 {
+            let gamma_k = psi_vec[0];
+            let gamma_k1 = psi_vec[1];
+            let delta_t = psi_vec[2];
+            -(alpha / 2.0 * (gamma_k + gamma_k1) + m_dot_bp) * delta_t
+        };
+
+        let fm_taylor_expr = build_taylor_expression(
+            fm_func,
+            &[
+                (vars.steps[k].gamma, prev_step_k.gamma),
+                (vars.steps[k + 1].gamma, prev_step_k1.gamma),
+                (vars.dt, prev_dt),
+            ],
+        );
+
+        model.add_constraint(constraint!(
+            vars.steps[k + 1].m == vars.steps[k].m + fm_taylor_expr
+        ));
+
+        // Position dynamics
+        for i in 0..3 {
+            let fr_func = |psi_vec: &DVector<F64>| -> F64 {
+                // psi_vec contains: [v[k][i], a[k][i], a[k+1][i], dt]
+                let vk = psi_vec[0];
+                let ak = psi_vec[1];
+                let ak1 = psi_vec[2];
+                let delta_t = psi_vec[3];
+                vk * delta_t + (1.0 / 3.0) * (ak + 0.5 * ak1) * delta_t.powi(2)
+            };
+
+            let fr_taylor_expr = build_taylor_expression(
+                fm_func,
+                &[
+                    (vars.steps[k].v[i], prev_step_k.v[i]),
+                    (vars.steps[k].a[i], prev_step_k.a[i]),
+                    (vars.steps[k + 1].a[i], prev_step_k1.a[i]),
+                    (vars.dt, prev_dt),
+                ],
+            );
+
+            model.add_constraint(constraint!(
+                vars.steps[k + 1].r[i] == vars.steps[k].r[i] + fr_taylor_expr
+            ));
+        }
+
+        // Velocity dynamics
+        for i in 0..3 {
+            let fv_func = |psi_vec: &DVector<F64>| -> F64 {
+                let ak = psi_vec[0];
+                let ak1 = psi_vec[1];
+                let delta_t = psi_vec[2];
+                0.5 * (ak + ak1) * delta_t
+            };
+            let fv_taylor_expr = build_taylor_expression(
+                fv_func,
+                &[
+                    (vars.steps[k].a[i], prev_step_k.a[i]),
+                    (vars.steps[k + 1].a[i], prev_step_k1.a[i]),
+                    (vars.dt, prev_dt),
+                ],
+            );
+
+            model.add_constraint(constraint!(
+                vars.steps[k + 1].v[i] == vars.steps[k].v[i] + fv_taylor_expr
+            ));
+        }
+
+        // Acceleration dynamics
+        // a[k] = (1 / m[k]) * (T[k] + D[k]) + a_R[k] + g
+        // D[k] = drag_const * ||v[k]|| * v[k]
+        for i in 0..3 {
+            let fa_func = |psi_vec: &DVector<F64>| -> F64 {
+                let mk = psi_vec[0];
+                let tk_i = psi_vec[1];
+                let vk_0 = psi_vec[2];
+                let vk_1 = psi_vec[3];
+                let vk_2 = psi_vec[4];
+                let aRk_i = psi_vec[5];
+
+                let v_norm = F::sqrt(vk_0.powi(2) + vk_1.powi(2) + vk_2.powi(2));
+
+                let drag_k_i = params.c_d * v_norm * psi_vec[2 + i];
+
+                let inv_mk = 1.0 / mk;
+
+                inv_mk * (tk_i + drag_k_i) + aRk_i + params.g_vec[i]
+            };
+
+            let fa_taylor_expr = build_taylor_expression(
+                fa_func,
+                &[
+                    (vars.steps[k].m, prev_step_k.m),
+                    (vars.steps[k].t[i], prev_step_k.t[i]),
+                    (vars.steps[k].v[0], prev_step_k.v[0]),
+                    (vars.steps[k].v[1], prev_step_k.v[1]),
+                    (vars.steps[k].v[2], prev_step_k.v[2]),
+                    (vars.steps[k].aR[i], prev_step_k.aR[i]),
+                ],
+            );
+
+            model.add_constraint(constraint!(vars.steps[k].a[i] == fa_taylor_expr));
+        }
+    }
 }
 
 /// Add the state constraints
@@ -336,7 +460,6 @@ fn add_state_constraints(
 ) {
     let N = settings.N;
     let dt_bar = prev_trajectory.dt;
-    let dt_i = settings.dt;
 
     // Add SOC constraints
     for k in 0..N {
@@ -403,13 +526,13 @@ fn add_state_constraints(
     }
 
     // Rate of change of thrust (Equation 73/91):
-    // dot_min*dt_i <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt_i
+    // dot_min*dt <= Gamma[k+1] - Gamma[k] <= Tdot_max*dt
     for k in 0..N - 1 {
         model.add_constraint(constraint!(
-            vars.steps[k + 1].gamma - vars.steps[k].gamma >= params.tdot_min * dt_i
+            vars.steps[k + 1].gamma - vars.steps[k].gamma >= params.tdot_min * vars.dt
         ));
         model.add_constraint(constraint!(
-            vars.steps[k + 1].gamma - vars.steps[k].gamma <= params.tdot_max * dt_i
+            vars.steps[k + 1].gamma - vars.steps[k].gamma <= params.tdot_max * vars.dt
         ));
     }
 

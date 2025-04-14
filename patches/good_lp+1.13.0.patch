@@ -62,7 +62,7 @@ index 801ece6..35f1621 100644
  name = "resource_allocation_problem"
  path = "tests/resource_allocation_problem.rs"
 diff --git a/src/constraint.rs b/src/constraint.rs
-index 35b5ce6..2076ef4 100644
+index 35b5ce6..23221e2 100644
 --- a/src/constraint.rs
 +++ b/src/constraint.rs
 @@ -4,40 +4,110 @@ use crate::variable::{FormatWithVars, Variable};
@@ -233,7 +233,7 @@ index 35b5ce6..2076ef4 100644
      ([$($left:tt)*]) => {
          $($left:tt)*
      };
-@@ -142,6 +228,19 @@ macro_rules! constraint {
+@@ -142,6 +228,28 @@ macro_rules! constraint {
      };
  }
  
@@ -248,12 +248,21 @@ index 35b5ce6..2076ef4 100644
 +            $crate::Expression::from($rhs)
 +        ])
 +    };
++    (norm2_vec($vec_expr:expr) <= $rhs:expr) => {
++        {
++            let mut expressions: Vec<$crate::Expression> = $vec_expr.into_iter()
++                .map(|item| $crate::Expression::from(item))
++                .collect();
++            expressions.push($crate::Expression::from($rhs));
++            $crate::constraint::soc(expressions)
++        }
++    };
 +}
 +
  #[derive(Clone, PartialEq, Debug)]
  /// A constraint reference contains the sequence id of the constraint within the problem
  pub struct ConstraintReference {
-@@ -150,13 +249,47 @@ pub struct ConstraintReference {
+@@ -150,13 +258,47 @@ pub struct ConstraintReference {
  
  #[cfg(test)]
  mod tests {
