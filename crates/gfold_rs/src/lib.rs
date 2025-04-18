@@ -68,6 +68,8 @@ mod utils;
 
 pub mod trajectories;
 
+pub mod plotting;
+
 pub mod guidance;
 
 pub mod state;

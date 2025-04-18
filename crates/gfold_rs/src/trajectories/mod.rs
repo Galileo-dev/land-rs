@@ -2,4 +2,8 @@
 
 #[allow(clippy::module_inception)]
 mod apdg;
-pub use apdg::*;
+mod convergence;
+
+pub use apdg::models::{AlgorithmParams, SimulationParams};
+pub use apdg::{APDGProblemSolver, APDGSolution, APDGSolutionTimeStep, Settings};
+pub use convergence::ConvergenceHistory;
