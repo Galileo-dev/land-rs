@@ -338,6 +338,8 @@ fn add_linearised_dynamics_constraints(
     let alpha = 1.0 / (params.i_sp * params.g_0);
     let m_dot_bp = (params.p_amb * params.a_nozzle) / (params.i_sp * params.g_0);
 
+    let drag_coeff = 0.5 * params.rho * params.s_d * params.c_d;
+
     for k in 0..N - 1 {
         let prev_step_k = &prev_trajectory.steps[k];
         let prev_step_k1 = &prev_trajectory.steps[k + 1];
@@ -376,7 +378,7 @@ fn add_linearised_dynamics_constraints(
             };
 
             let fr_taylor_expr = build_taylor_expression(
-                fm_func,
+                fr_func,
                 &[
                     (vars.steps[k].v[i], prev_step_k.v[i]),
                     (vars.steps[k].a[i], prev_step_k.a[i]),
@@ -417,20 +419,18 @@ fn add_linearised_dynamics_constraints(
         // D[k] = drag_const * ||v[k]|| * v[k]
         for i in 0..3 {
             let fa_func = |psi_vec: &DVector<F64>| -> F64 {
-                let mk = psi_vec[0];
-                let tk_i = psi_vec[1];
+                let m_k = psi_vec[0];
+                let t_k = psi_vec[1];
                 let vk_0 = psi_vec[2];
                 let vk_1 = psi_vec[3];
                 let vk_2 = psi_vec[4];
-                let aRk_i = psi_vec[5];
+                let aR_k = psi_vec[5];
 
                 let v_norm = F::sqrt(vk_0.powi(2) + vk_1.powi(2) + vk_2.powi(2));
 
-                let drag_k_i = params.c_d * v_norm * psi_vec[2 + i];
+                let drag_k_i = -drag_coeff * v_norm * psi_vec[2 + i];
 
-                let inv_mk = 1.0 / mk;
-
-                inv_mk * (tk_i + drag_k_i) + aRk_i + params.g_vec[i]
+                (t_k + drag_k_i) / m_k + aR_k + params.g_vec[i]
             };
 
             let fa_taylor_expr = build_taylor_expression(
