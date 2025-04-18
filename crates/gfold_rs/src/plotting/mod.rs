@@ -20,24 +20,22 @@ pub fn plot_trajectory_3d(
     let (u_min, u_max) = min_max(&pos_u).unwrap_or((0.0, 1.0));
     let (e_min, e_max) = min_max(&pos_e).unwrap_or((0.0, 1.0));
     let (n_min, n_max) = min_max(&pos_n).unwrap_or((0.0, 1.0));
-    let (u_min, u_max, e_min, e_max, n_min, n_max) =
-        add_pad_3d(u_min, u_max, e_min, e_max, n_min, n_max);
 
     // Up, East, North reference frame
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 40).into_font())
-        .build_cartesian_3d(u_min..u_max, e_min..e_max, n_min..n_max)?;
+        .build_cartesian_3d(e_min..e_max, u_min..u_max, n_min..n_max)?;
 
     chart.configure_axes().draw()?;
 
     // trajectory line
     chart
         .draw_series(LineSeries::new(
-            pos_u
+            pos_e
                 .iter()
-                .zip(&pos_e)
                 .zip(&pos_n)
-                .map(|((&u, &e), &n)| (u, e, n)),
+                .zip(&pos_u)
+                .map(|((&e, &n), &u)| (e, u, n)),
             &RED,
         ))?
         .label("Trajectory")
@@ -46,10 +44,12 @@ pub fn plot_trajectory_3d(
     // thrust vectors
     let max_t = thrust.iter().map(Vector3::norm).fold(0.0, f64::max);
     if max_t > 1e-6 {
-        let scale = (u_max - u_min).min(e_max - e_min).min(n_max - n_min) / max_t / 10.0;
-        for (((&u, &e), &n), t) in pos_u.iter().zip(&pos_e).zip(&pos_n).zip(&thrust) {
-            let end = (u + t[0] * scale, e + t[1] * scale, n + t[2] * scale);
-            chart.draw_series(LineSeries::new(vec![(u, e, n), end], &BLUE.mix(0.5)))?;
+        let scale = (e_max - e_min).min(n_max - n_min).min(u_max - u_min) / max_t / 10.0;
+
+        for (((&e, &n), &u), t) in pos_e.iter().zip(&pos_n).zip(&pos_u).zip(&thrust) {
+            let start = (e, u, n);
+            let end = (e + t[1] * scale, u + t[0] * scale, n + t[2] * scale);
+            chart.draw_series(LineSeries::new(vec![start, end], &BLUE.mix(0.5)))?;
         }
     }
 
@@ -140,31 +140,6 @@ fn min_max(v: &[f64]) -> Option<(f64, f64)> {
         None => Some((x, x)),
         Some((lo, hi)) => Some((lo.min(x), hi.max(x))),
     })
-}
-
-fn add_pad_3d(
-    u0: f64,
-    u1: f64,
-    e0: f64,
-    e1: f64,
-    n0: f64,
-    n1: f64,
-) -> (f64, f64, f64, f64, f64, f64) {
-    let pad = |rng: f64| {
-        if rng.abs() < 1e-6 {
-            0.1
-        } else {
-            rng * 0.1
-        }
-    };
-    (
-        u0 - pad(u1 - u0),
-        u1 + pad(u1 - u0),
-        e0 - pad(e1 - e0),
-        e1 + pad(e1 - e0),
-        n0 - pad(n1 - n0),
-        n1 + pad(n1 - n0),
-    )
 }
 
 fn single_time_series<DB: DrawingBackend>(
