@@ -1,12 +1,11 @@
-use gfold_rs::trajectories::{APDGSettings, APDGTrajectory};
+use gfold_rs::trajectories::{APDGProblemSolver, Settings};
 
-fn main() -> Result<(), gfold_rs::trajectories::APDGError> {
-    let settings = APDGSettings::builder()
-        .landing_site(&[3.0, 4.0])
-        .max_control(5.0)
-        .build();
+fn main() {
+    let settings = Settings::builder().build();
 
-    let mut apdg = APDGTrajectory::new(settings)?;
-    apdg.solve();
-    Ok(())
+    let mut apdg_problem = APDGProblemSolver::default();
+
+    apdg_problem
+        .solve(&settings)
+        .expect("Failed to solve the APDG problem");
 }

@@ -1,0 +1,657 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 801ece6..35f1621 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -23,13 +23,7 @@ autobenches = false
+ description = " Mixed Integer Linear Programming for Rust, with an user-friendly API. This crate allows modeling LP problems, and lets you solve them with various solvers."
+ documentation = "https://docs.rs/good_lp"
+ readme = "README.md"
+-keywords = [
+-    "linear-programming",
+-    "optimization",
+-    "symbolic",
+-    "math",
+-    "solver",
+-]
++keywords = ["linear-programming", "optimization", "symbolic", "math", "solver"]
+ categories = [
+     "mathematics",
+     "algorithms",
+@@ -43,18 +37,8 @@ repository = "https://github.com/rust-or/good_lp"
+ [package.metadata.docs.rs]
+ all-features = false
+ default-target = "x86_64-unknown-linux-gnu"
+-features = [
+-    "coin_cbc",
+-    "microlp",
+-    "lpsolve",
+-    "highs",
+-    "lp-solvers",
+-    "clarabel",
+-]
+-rustdoc-args = [
+-    "--cfg",
+-    "docsrs",
+-]
++features = ["coin_cbc", "microlp", "lpsolve", "highs", "lp-solvers", "clarabel"]
++rustdoc-args = ["--cfg", "docsrs"]
+ targets = ["x86_64-unknown-linux-gnu"]
+ 
+ [features]
+@@ -68,10 +52,7 @@ all_default_solvers = [
+     "lp-solvers",
+     "clarabel",
+ ]
+-default = [
+-    "coin_cbc",
+-    "singlethread-cbc",
+-]
++default = ["clarabel"]
+ minilp = ["microlp"]
+ scip = ["russcip"]
+ scip_bundled = ["russcip?/bundled"]
+@@ -89,6 +70,10 @@ path = "tests/mipgap_set.rs"
+ name = "readme_example"
+ path = "tests/readme_example.rs"
+ 
++[[test]]
++name = "clarabel_soc_constraint"
++path = "tests/clarabel_soc_constraint.rs"
++
+ [[test]]
+ name = "resource_allocation_problem"
+ path = "tests/resource_allocation_problem.rs"
+diff --git a/src/constraint.rs b/src/constraint.rs
+index 35b5ce6..23221e2 100644
+--- a/src/constraint.rs
++++ b/src/constraint.rs
+@@ -4,40 +4,110 @@ use crate::variable::{FormatWithVars, Variable};
+ use core::fmt::{Debug, Formatter};
+ use std::ops::{Shl, Shr, Sub};
+ 
++#[derive(Clone, PartialEq)]
++
++/// The type of constraint
++#[derive(Debug)]
++pub enum ConstraintType {
++    /// The constraint is an equality `a == b`
++    Equality,
++    /// The constraint is an inequality `a <= b`
++    LessThanOrEqual,
++    /// The constraint is a second-order cone constraint `||x|| <= t`
++    SecondOrderCone,
++}
++
+ /// A constraint represents a single (in)equality that must hold in the solution.
+ pub struct Constraint {
+     /// The expression that is constrained to be null or negative
+-    pub(crate) expression: Expression,
+-    /// if is_equality, represents expression == 0, otherwise, expression <= 0
+-    pub(crate) is_equality: bool,
++    pub(crate) expressions: Vec<Expression>,
++    /// Kind of constraint
++    pub(crate) kind: ConstraintType,
+     /// Optional constraint name
+     pub(crate) name: Option<String>,
+ }
+ 
+ impl Constraint {
+-    fn new(expression: Expression, is_equality: bool) -> Constraint {
++    fn new(expressions: Vec<Expression>, kind: ConstraintType) -> Constraint {
++        if kind == ConstraintType::SecondOrderCone {
++            assert_eq!(
++                expressions.len(),
++                2,
++                "Second order cone constraints must have two expressions"
++            );
++        } else {
++            assert_eq!(expressions.len(), 1, "Constraints must have one expression");
++        }
++
+         Constraint {
+-            expression,
+-            is_equality,
++            expressions,
++            kind,
+             name: None,
+         }
+     }
+ 
++    /// Get the kind of constraint
++    pub fn get_kind(&self) -> &ConstraintType {
++        &self.kind
++    }
++
++    /// Get length of the expressions
++    pub fn len(&self) -> usize {
++        self.expressions.len()
++    }
++
+     /// set the constraint name
+     pub fn set_name(mut self, name: String) -> Self {
+         self.name = Some(name);
+         self
+     }
++
++    /// Should only store one expressions when using a linear constraint  
++    pub fn linear_expression(&self) -> &Expression {
++        assert_eq!(
++            self.expressions.len(),
++            1,
++            "Tried to treat a multi-expression constraint as linear!"
++        );
++        &self.expressions[0]
++    }
+ }
+ 
+ impl FormatWithVars for Constraint {
+-    fn format_with<FUN>(&self, f: &mut Formatter<'_>, variable_format: FUN) -> std::fmt::Result
++    fn format_with<FUN>(&self, f: &mut Formatter<'_>, mut variable_format: FUN) -> std::fmt::Result
+     where
+         FUN: FnMut(&mut Formatter<'_>, Variable) -> std::fmt::Result,
+     {
+-        self.expression.linear.format_with(f, variable_format)?;
+-        write!(f, " {} ", if self.is_equality { "=" } else { "<=" })?;
+-        write!(f, "{}", -self.expression.constant)
++        match self.kind {
++            ConstraintType::Equality | ConstraintType::LessThanOrEqual => {
++                let expr = &self.expressions[0];
++                expr.linear.format_with(f, &mut variable_format)?;
++                let op = if self.kind == ConstraintType::Equality {
++                    "="
++                } else {
++                    "<="
++                };
++                write!(f, " {} {}", op, -expr.constant)
++            }
++            ConstraintType::SecondOrderCone => {
++                write!(f, "||")?;
++                let mut first = true;
++                for expr in &self.expressions[..self.expressions.len() - 1] {
++                    if first {
++                        first = false;
++                    } else {
++                        write!(f, " + ")?;
++                    }
++                    expr.linear.format_with(f, &mut variable_format)?;
++                }
++                write!(f, "|| <= ")?;
++                self.expressions
++                    .last()
++                    .unwrap()
++                    .linear
++                    .format_with(f, &mut variable_format)
++            }
++        }
+     }
+ }
+ 
+@@ -49,12 +119,12 @@ impl Debug for Constraint {
+ 
+ /// equals
+ pub fn eq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
+-    Constraint::new(a - b, true)
++    Constraint::new(vec![a - b], ConstraintType::Equality)
+ }
+ 
+ /// less than or equal
+ pub fn leq<B, A: Sub<B, Output = Expression>>(a: A, b: B) -> Constraint {
+-    Constraint::new(a - b, false)
++    Constraint::new(vec![a - b], ConstraintType::LessThanOrEqual)
+ }
+ 
+ /// greater than or equal
+@@ -62,6 +132,22 @@ pub fn geq<A, B: Sub<A, Output = Expression>>(a: A, b: B) -> Constraint {
+     leq(b, a)
+ }
+ 
++/// Create a second-order cone constraint from multiple expressions.
++/// By specification, the first expression is the "t" or "head,"
++/// and the remaining are the "x" components in t >= sqrt(x_1^2 + ... + x_n^2).
++pub fn soc<T: Into<Expression>>(expressions: Vec<T>) -> Constraint {
++    assert!(
++        expressions.len() >= 2,
++        "SOC needs at least 2 expressions: [t, x1, x2, ...]"
++    );
++    let expressions: Vec<Expression> = expressions.into_iter().map(Into::into).collect();
++    Constraint {
++        expressions,
++        kind: ConstraintType::SecondOrderCone,
++        name: None,
++    }
++}
++
+ macro_rules! impl_shifts {
+     ($($t:ty)*) => {$(
+         impl< RHS> Shl<RHS> for $t where Self: Sub<RHS, Output=Expression> {
+@@ -128,7 +214,7 @@ macro_rules! constraint {
+     ([$($left:tt)*] == $($right:tt)*) => {
+         $crate::constraint::eq($($left)*, $($right)*)
+     };
+-    // Stop condition: all token have been processed
++    // Stop condition: all tokens have been processed
+     ([$($left:tt)*]) => {
+         $($left:tt)*
+     };
+@@ -142,6 +228,28 @@ macro_rules! constraint {
+     };
+ }
+ 
++/// This macro define a second-order cone constraints using `norm(x) <= t`.
++/// Note: The `t >= norm2(...)` form is not supported instead rewrite it as `norm2(...) <= t`.
++#[macro_export]
++macro_rules! soc_constraint {
++    (norm2($($vars:expr),+) <= $rhs:expr) => {
++        // Order: [x1, x2, ..., t]
++        $crate::constraint::soc(vec![
++            $( $crate::Expression::from($vars) ),+,
++            $crate::Expression::from($rhs)
++        ])
++    };
++    (norm2_vec($vec_expr:expr) <= $rhs:expr) => {
++        {
++            let mut expressions: Vec<$crate::Expression> = $vec_expr.into_iter()
++                .map(|item| $crate::Expression::from(item))
++                .collect();
++            expressions.push($crate::Expression::from($rhs));
++            $crate::constraint::soc(expressions)
++        }
++    };
++}
++
+ #[derive(Clone, PartialEq, Debug)]
+ /// A constraint reference contains the sequence id of the constraint within the problem
+ pub struct ConstraintReference {
+@@ -150,13 +258,47 @@ pub struct ConstraintReference {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use crate::variables;
++    use crate::{constraint, variable, variables};
+     #[test]
+     fn test_leq() {
+-        let mut vars = variables!();
++        let mut vars: crate::ProblemVariables = variables!();
+         let v0 = vars.add_variable();
+         let v1 = vars.add_variable();
+-        let f = format!("{:?}", (3. - v0) >> v1);
+-        assert!(["v0 + v1 <= 3", "v1 + v0 <= 3"].contains(&&*f), "{}", f)
++        let f: String = format!("{:?}", (3. - v0) >> v1);
++        assert!(["v0 + v1 <= 3", "v1 + v0 <= 3"].contains(&&*f), "{}", f);
++    }
++
++    #[test]
++    fn test_linear_leq() {
++        let mut vars = variables!();
++        let x = vars.add(variable());
++        let y = vars.add(variable());
++        let c = constraint!(x + y <= 5);
++        let expected = format!("{:?}", constraint::leq(x + y, 5));
++        let result: String = format!("{c:?}");
++
++        assert_eq!(result, expected);
++    }
++
++    #[test]
++    fn test_linear_geq() {
++        let mut vars = variables!();
++        let x = vars.add(variable());
++        let y = vars.add(variable());
++        let c = constraint!(x - y >= 2);
++        let expected = format!("{:?}", constraint::geq(x - y, 2));
++        let result: String = format!("{c:?}");
++
++        assert_eq!(result, expected);
++    }
++
++    #[test]
++    fn test_soc() {
++        let mut vars = variables!();
++        let v = vars.add_vector(variable(), 3);
++        let constraint = soc_constraint!(norm2(v[0] + v[1] + v[2]) <= v[1] * 3);
++        let expected = "||v1 + v0 + v2|| <= 3 v1";
++        let result = format!("{constraint:?}");
++        assert_eq!(result, expected);
+     }
+ }
+diff --git a/src/expression.rs b/src/expression.rs
+index 7496fc2..904aa0e 100644
+--- a/src/expression.rs
++++ b/src/expression.rs
+@@ -9,6 +9,7 @@ use crate::variable::{FormatWithVars, Variable};
+ use crate::{Constraint, Solution};
+ 
+ /// An linear expression without a constant component
++#[derive(Clone, Debug)]
+ pub struct LinearExpression {
+     pub(crate) coefficients: HashMap<Variable, f64>,
+ }
+@@ -150,7 +151,6 @@ impl Expression {
+             constant: 0.0,
+         }
+     }
+-
+     /// Create a concrete expression struct from anything that has linear coefficients and a constant
+     ///
+     /// ```
+diff --git a/src/solvers/clarabel.rs b/src/solvers/clarabel.rs
+index 07c92ec..a30947b 100644
+--- a/src/solvers/clarabel.rs
++++ b/src/solvers/clarabel.rs
+@@ -1,6 +1,7 @@
+ //! A solver that uses [clarabel](https://oxfordcontrol.github.io/ClarabelDocs/stable/), a pure rust solver.
+ 
+ use crate::affine_expression_trait::IntoAffineExpression;
++use crate::constraint::ConstraintType;
+ use crate::expression::LinearExpression;
+ use crate::variable::UnsolvedProblem;
+ use crate::{
+@@ -121,24 +122,65 @@ impl SolverModel for ClarabelProblem {
+     }
+ 
+     fn add_constraint(&mut self, constraint: Constraint) -> ConstraintReference {
+-        self.constraints_matrix_builder
+-            .add_row(constraint.expression.linear);
+-        let index = self.constraint_values.len();
+-        self.constraint_values.push(-constraint.expression.constant);
+-        // Cones indicate the type of constraint. We only support nonnegative and equality constraints.
+-        // To avoid creating a new cone for each constraint, we merge them.
+-        let next_cone = if constraint.is_equality {
+-            ZeroConeT(1)
+-        } else {
+-            NonnegativeConeT(1)
+-        };
+-        let prev_cone = self.cones.last_mut();
+-        match (prev_cone, next_cone) {
+-            (Some(ZeroConeT(a)), ZeroConeT(b)) => *a += b,
+-            (Some(NonnegativeConeT(a)), NonnegativeConeT(b)) => *a += b,
+-            (_, next_cone) => self.cones.push(next_cone),
+-        };
+-        ConstraintReference { index }
++        match constraint.kind {
++            ConstraintType::Equality => {
++                let expr = constraint.linear_expression();
++                let row_linear = expr.linear.clone();
++                let row_const = expr.constant;
++                self.constraints_matrix_builder.add_row(row_linear);
++                self.constraint_values.push(-row_const);
++                // Merged into the ZeroCone
++                match self.cones.last_mut() {
++                    Some(SupportedConeT::ZeroConeT(ref mut size)) => {
++                        *size += 1;
++                    }
++                    _ => self.cones.push(SupportedConeT::ZeroConeT(1)),
++                }
++                ConstraintReference {
++                    index: self.constraint_values.len() - 1,
++                }
++            }
++
++            ConstraintType::LessThanOrEqual => {
++                let expr: &crate::Expression = constraint.linear_expression();
++                let row_linear = expr.linear.clone();
++                let row_const = expr.constant;
++                self.constraints_matrix_builder.add_row(row_linear);
++                self.constraint_values.push(-row_const);
++                // Merged into NonnegativeCone
++                match self.cones.last_mut() {
++                    Some(SupportedConeT::NonnegativeConeT(ref mut size)) => {
++                        *size += 1;
++                    }
++                    _ => self.cones.push(SupportedConeT::NonnegativeConeT(1)),
++                }
++                ConstraintReference {
++                    index: self.constraint_values.len() - 1,
++                }
++            }
++
++            ConstraintType::SecondOrderCone => {
++                // Clarabel standard form Ax + s = b, s in SOC means s = b - Ax, s_0 >= ||s_1...||.
++                // We need s_0 = t = Ct*x + dt and s_i = x_i = Coff_xi*x + dxi.
++                // The constraint.expressions vector is in the form [x1, ..., xn, t].
++                // Process t (last element) first
++                let dim = constraint.expressions.len();
++                let start_row = self.constraint_values.len();
++                for expr in constraint.expressions.iter().rev() {
++                    let row_const = expr.constant;
++                    self.constraints_matrix_builder.add_row_from_iter(
++                        expr.linear
++                            .coefficients
++                            .iter()
++                            .map(|(&var, &coeff)| (var, -coeff)),
++                    );
++                    self.constraint_values.push(row_const);
++                }
++
++                self.cones.push(SupportedConeT::SecondOrderConeT(dim));
++                ConstraintReference { index: start_row }
++            }
++        }
+     }
+ 
+     fn name() -> &'static str {
+@@ -211,6 +253,19 @@ impl CscMatrixBuilder {
+         }
+         self.n_rows += 1;
+     }
++
++    /// Adds a row to the matrix from an iterator of (Variable, coefficient) pairs.
++    fn add_row_from_iter<I>(&mut self, iter: I)
++    where
++        I: Iterator<Item = (Variable, f64)>,
++    {
++        for (var, value) in iter {
++            self.rowval[var.index()].push(self.n_rows);
++            self.nzval[var.index()].push(value);
++        }
++        self.n_rows += 1;
++    }
++
+     fn build(self) -> clarabel::algebra::CscMatrix {
+         let mut colptr = Vec::with_capacity(self.n_cols + 1);
+         colptr.push(0);
+@@ -245,7 +300,13 @@ fn fast_flatten_vecs<T: Copy>(vecs: Vec<Vec<T>>) -> Vec<T> {
+     result
+ }
+ 
+-#[cfg(test)]
++// #[cfg(test)]
++impl ClarabelProblem {
++    /// Test helper for inspecting the internal state of the problem definition
++    pub fn test_inspect(&self) -> (&[f64], &[SupportedConeT<f64>]) {
++        (&self.constraint_values, &self.cones)
++    }
++}
+ mod tests {
+ 
+     use super::*;
+diff --git a/tests/clarabel_soc_constraint.rs b/tests/clarabel_soc_constraint.rs
+new file mode 100644
+index 0000000..6b82f14
+--- /dev/null
++++ b/tests/clarabel_soc_constraint.rs
+@@ -0,0 +1,184 @@
++#[cfg(feature = "clarabel")]
++mod clarabel_soc_tests {
++    use std::f64::consts::{FRAC_1_SQRT_2, SQRT_2};
++
++    use clarabel::solver::SupportedConeT;
++    use float_eq::assert_float_eq;
++    use good_lp::constraint::ConstraintType;
++    use good_lp::solvers::clarabel::clarabel;
++    use good_lp::{constraint, soc_constraint, variable, variables, Solution, SolverModel};
++
++    #[test]
++    fn feasible_soc_test() {
++        variables! { vars: x; y; }
++        let model = vars
++            .maximise(x + y)
++            .using(clarabel)
++            .with(soc_constraint!(norm2(x, y) <= 3.0));
++
++        let sol = model.solve().unwrap();
++        let (xx, yy) = (sol.value(x), sol.value(y));
++
++        let obj = xx + yy;
++        assert_float_eq!(obj, 3.0 * 2_f64.sqrt(), abs <= 1e-4);
++    }
++
++    #[test]
++    fn infeasible_soc_test() {
++        variables! { vars: x; y; }
++
++        let model = vars
++            .maximise(x + y)
++            .using(clarabel)
++            .with(soc_constraint!(norm2(x, y) <= -1.0));
++
++        let result = model.solve();
++        assert!(result.is_err(), "Should be infeasible or produce an error");
++    }
++
++    #[test]
++    fn test_soc_constraint_structure() {
++        let mut vars = variables!();
++        let v = vars.add_vector(variable(), 3);
++
++        let soc_cons = soc_constraint!(norm2(v[0] + v[1] + v[2]) <= v[0] * 2);
++
++        assert_eq!(soc_cons.get_kind(), &ConstraintType::SecondOrderCone);
++        assert_eq!(soc_cons.len(), 2);
++
++        let unsolved = vars.minimise(0);
++        let mut prob = clarabel(unsolved);
++
++        let pre_rows_len = {
++            let (pre_rows, _) = prob.test_inspect();
++            pre_rows.len()
++        };
++
++        let _cref = prob.add_constraint(soc_cons);
++
++        let (post_rows, cones) = prob.test_inspect();
++        assert_eq!(
++            post_rows.len(),
++            pre_rows_len + 2,
++            "Expected 2 additional rows for the soc constraint"
++        );
++
++        let last_cone = cones.last().expect("No cone was added");
++        match last_cone {
++            SupportedConeT::SecondOrderConeT(dim) => {
++                assert_eq!(*dim, 2, "The soc cone dimension should be 2");
++            }
++            _ => panic!("The last cone is not a SecondOrderConeT"),
++        }
++
++        #[test]
++        fn soc_maximisation_problem() {
++            variables! {
++                vars: x; y;
++            }
++
++            let mut problem = vars.maximise(x + y).using(clarabel);
++
++            problem = problem.with(soc_constraint!(norm2(x, y) <= 1));
++
++            let solution = problem
++                .solve()
++                .expect("Clarabel should solve the soc problem");
++
++            let objective_value = solution.eval(x + y);
++
++            assert!(
++                (objective_value - SQRT_2).abs() < 1e-5,
++                "Unexpected optimal objective"
++            );
++
++            let x_val = solution.value(x);
++            let y_val = solution.value(y);
++
++            assert!((x_val - FRAC_1_SQRT_2).abs() < 1e-5, "x not optimal");
++            assert!((y_val - FRAC_1_SQRT_2).abs() < 1e-5, "y not optimal");
++
++            println!(
++                "Optimal solution: x = {}, y = {}, objective = {}",
++                x_val, y_val, objective_value
++            );
++        }
++    }
++
++    #[test]
++    fn soc_maximisation_problem() {
++        variables! {
++            vars: x; y;
++        }
++
++        let mut problem = vars.maximise(x + y).using(clarabel);
++
++        problem = problem.with(soc_constraint!(norm2(x, y) <= 1));
++
++        let solution = problem
++            .solve()
++            .expect("Clarabel should solve the soc problem");
++
++        let objective_value = solution.eval(x + y);
++
++        assert!(
++            (objective_value - SQRT_2).abs() < 1e-5,
++            "Unexpected optimal objective"
++        );
++
++        let x_val = solution.value(x);
++        let y_val = solution.value(y);
++
++        assert!((x_val - FRAC_1_SQRT_2).abs() < 1e-5, "x not optimal");
++        assert!((y_val - FRAC_1_SQRT_2).abs() < 1e-5, "y not optimal");
++
++        println!(
++            "Optimal solution: x = {}, y = {}, objective = {}",
++            x_val, y_val, objective_value
++        );
++    }
++
++    #[test]
++    fn complicated_soc_maximisation_problem() {
++        variables! {
++            vars: x; y; z;
++        }
++
++        let mut problem = vars
++            .maximise(3 * x + 4 * y + 2 * z)
++            .using(clarabel)
++            .with(soc_constraint!(
++                norm2(x - z, 2 * y + z, x + y - 2 * z) <= 5.0
++            ))
++            .with(constraint!(x + 2 * y - z <= 4.0))
++            .with(constraint!(-x + y + z >= 1.0));
++
++        let solution = problem
++            .solve()
++            .expect("Clarabel should solve the complex SOC problem");
++
++        let x_val = solution.value(x);
++        let y_val = solution.value(y);
++        let z_val = solution.value(z);
++
++        let soc_norm = ((x_val - z_val).powi(2)
++            + (2.0 * y_val + z_val).powi(2)
++            + (x_val + y_val - 2.0 * z_val).powi(2))
++        .sqrt();
++        assert!(soc_norm <= 5.0 + 1e-5, "SOC constraint violated");
++        assert!(
++            x_val + 2.0 * y_val - z_val <= 4.0 + 1e-5,
++            "Linear constraint 1 violated"
++        );
++        assert!(
++            -x_val + y_val + z_val >= 1.0 - 1e-5,
++            "Linear constraint 2 violated"
++        );
++
++        let objective_value = solution.eval(3 * x + 4 * y + 2 * z);
++        println!(
++            "Complex SOC optimal solution: x = {:.4}, y = {:.4}, z = {:.4}, objective = {:.4}",
++            x_val, y_val, z_val, objective_value
++        );
++    }
++}

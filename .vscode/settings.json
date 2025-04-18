@@ -21,5 +21,9 @@
         },
       }
     }
+  ],
+  "rust-analyzer.linkedProjects": [
+    "./Cargo.toml",
+    "./target/patch/good_lp-1.13.0/Cargo.toml"
   ]
 }
