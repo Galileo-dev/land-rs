@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+use crate::trajectories::ConvergenceHistory;
 use bon::Builder;
 use clarabel::algebra::*;
 use clarabel::solver::traits::Solution;
@@ -11,37 +12,37 @@ use thiserror::Error;
 mod error;
 use error::Error;
 mod guess;
-mod models;
 mod sucessive;
+
+// Settings
+pub mod models;
 
 #[derive(Debug, Clone, Builder)]
 /// A single time step of the APDG solution
 pub struct APDGSolutionTimeStep {
     /// Position [m]
-    r: Vector3<f64>,
+    pub r: Vector3<f64>,
     /// Velocity [m/s]
-    v: Vector3<f64>,
+    pub v: Vector3<f64>,
     /// Acceleration [m/s^2]
-    a: Vector3<f64>,
+    pub a: Vector3<f64>,
     /// Mass [kg]
-    m: f64,
+    pub m: f64,
     /// Thrust [N]
-    t: Vector3<f64>,
+    pub t: Vector3<f64>,
     /// Thrust magnitude [N]
-    gamma: f64,
+    pub gamma: f64,
     /// Acceleration relaxation term [m/s^2]
-    aR: Vector3<f64>,
+    pub aR: Vector3<f64>,
 }
 
 /// A complete APDG solution
 #[derive(Debug, Clone, Builder)]
 pub struct APDGSolution {
     /// An array of optimal variables at each time step
-    #[builder(getter)]
     steps: Vec<APDGSolutionTimeStep>,
 
     /// The time between each time step [s]
-    #[builder(getter)]
     dt: f64,
 }
 
@@ -54,38 +55,66 @@ pub struct Settings {
     solver_settings: AlgorithmParams,
 }
 
+impl Settings {
+    /// Returns a reference to the simulation parameters.
+    pub fn simulation_settings(&self) -> &SimulationParams {
+        &self.simulation_settings
+    }
+
+    /// Returns a reference to the algorithm parameters.
+    pub fn solver_settings(&self) -> &AlgorithmParams {
+        &self.solver_settings
+    }
+}
+
+impl APDGSolution {
+    /// The number of time steps in the solution
+    pub fn num_steps(&self) -> usize {
+        self.steps.len()
+    }
+
+    /// The time between each time step [s]
+    pub fn dt(&self) -> f64 {
+        self.dt
+    }
+
+    /// Individual steps of the solution
+    pub fn steps(&self) -> &[APDGSolutionTimeStep] {
+        &self.steps
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct APDGProblemSolver {}
 
 impl APDGProblemSolver {
-    /// Generate a trajectory to the landing site.
-    pub fn solve(&mut self, settings: &Settings) -> Result<APDGSolution, Error> {
-        // bomb if landing site is unreachable
-
-        // bomb if insufficient fuel
-
-        _solve(&settings)
+    /// Generate a trajectory and convergence history.
+    pub fn solve(
+        &mut self,
+        settings: &Settings,
+    ) -> Result<(APDGSolution, ConvergenceHistory), Error> {
+        _solve(settings)
     }
 }
 
-fn _solve(settings: &Settings) -> Result<APDGSolution, Error> {
+fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Error> {
     println!("Settings: {settings:?}");
 
     // --- Step 1: Initial Guess (Problem 4) ---
     println!("Solving Initial Guess Problem...");
     let initial_problem = guess::problem::APDGProblem::new(
-        settings.simulation_settings.clone(),
-        settings.solver_settings.clone(),
+        settings.simulation_settings().clone(),
+        settings.solver_settings().clone(),
     );
     let mut current_solution = initial_problem.solve()?;
     println!("Initial Guess Solved.");
 
-    let n_sc = settings.solver_settings.n_sc;
+    let n_sc = settings.solver_settings().n_sc;
 
     // Store convergence history
-    let mut pos_diff_log_history: Vec<f64> = Vec::with_capacity(n_sc);
-    let mut vel_diff_log_history: Vec<f64> = Vec::with_capacity(n_sc);
-    let mut thrust_diff_log_history: Vec<f64> = Vec::with_capacity(n_sc);
+    let mut pos_log: Vec<f64> = Vec::with_capacity(n_sc);
+    let mut vel_log: Vec<f64> = Vec::with_capacity(n_sc);
+    let mut thrust_log: Vec<f64> = Vec::with_capacity(n_sc);
     const LOG_EPSILON: f64 = 1e-10; // Prevent a log10(0) error
 
     for i in 0..n_sc {
@@ -96,8 +125,8 @@ fn _solve(settings: &Settings) -> Result<APDGSolution, Error> {
 
         // Setup and solve the successive problem
         let successive_problem = sucessive::problem::APDGProblem::new(
-            settings.simulation_settings.clone(),
-            settings.solver_settings.clone(),
+            settings.simulation_settings().clone(),
+            settings.solver_settings().clone(),
             prev_trajectory.clone(),
         );
 
@@ -119,19 +148,19 @@ fn _solve(settings: &Settings) -> Result<APDGSolution, Error> {
                 );
 
                 // Store log10 of differences for plotting later
-                // LOG_EPSILON is used to prevent a log10(0) error
-                pos_diff_log_history.push((solution_differences.pos + LOG_EPSILON).log10());
-                vel_diff_log_history.push((solution_differences.vel + LOG_EPSILON).log10());
-                thrust_diff_log_history.push((solution_differences.thrust + LOG_EPSILON).log10());
+                pos_log.push((solution_differences.pos + LOG_EPSILON).log10());
+                vel_log.push((solution_differences.vel + LOG_EPSILON).log10());
+                thrust_log.push((solution_differences.thrust + LOG_EPSILON).log10());
 
                 // Promote new solution to current solution and iterate until convergence
                 current_solution = new_solution;
 
-                if solution_differences.combined_relative < settings.solver_settings.sc_tolerance {
+                if solution_differences.combined_relative < settings.solver_settings().sc_tolerance
+                {
                     println!(
                         "Converged after {} iterations (Tolerance: {:.1e}).",
                         i + 1,
-                        settings.solver_settings.sc_tolerance
+                        settings.solver_settings().sc_tolerance
                     );
                     break;
                 }
@@ -150,17 +179,24 @@ fn _solve(settings: &Settings) -> Result<APDGSolution, Error> {
     println!("\nConvergence History (Log10 Max Differences):");
     println!("Iteration | Pos Diff (log10) | Vel Diff (log10) | Thrust Diff (log10)");
     println!("----------|------------------|------------------|---------------------");
-    for i in 0..pos_diff_log_history.len() {
+    for i in 0..pos_log.len() {
         println!(
             "{:>9} | {:>16.6e} | {:>16.6e} | {:>19.6e}",
             i + 1,
-            pos_diff_log_history[i],
-            vel_diff_log_history[i],
-            thrust_diff_log_history[i]
+            pos_log[i],
+            vel_log[i],
+            thrust_log[i]
         );
     }
 
-    Ok(current_solution)
+    Ok((
+        current_solution,
+        ConvergenceHistory {
+            pos: pos_log,
+            vel: vel_log,
+            thrust: thrust_log,
+        },
+    ))
 }
 
 /// Holds the maximum absolute differences between two solutions across all time steps
