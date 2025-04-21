@@ -14,5 +14,5 @@ pub(crate) mod error {
 }
 
 pub(crate) mod rocket {
-    pub(crate) use crate::rocket::RocketControl;
+    pub(crate) use crate::rocket::prelude::*;
 }

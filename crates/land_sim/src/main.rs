@@ -62,7 +62,7 @@ fn main() {
 }
 
 fn setup_camera(mut commands: Commands) {
-    let translation = Vec3::new(-2.0, 2.5, 5.0);
+    let translation = Vec3::new(0.0, 0.0, 100.0);
     let radius = translation.length();
 
     commands.spawn((
@@ -89,6 +89,6 @@ fn setup_physics(mut commands: Commands) {
         .insert(Transform::from_xyz(0.0, 0.0, 0.0));
     /* Create a landing pad. */
     commands
-        .spawn(Collider::cylinder(0.05, 5.0))
+        .spawn(Collider::cylinder(0.05, 20.0))
         .insert(Transform::from_xyz(0.0, 0.05, 0.0));
 }

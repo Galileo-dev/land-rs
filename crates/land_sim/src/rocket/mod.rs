@@ -1,10 +1,16 @@
 mod object;
-pub use object::{spawn_rocket, Rocket};
+pub use object::{spawn_rocket, RocketRoot};
 
 mod control;
-pub(super) use control::RocketControl;
-
 use crate::prelude::*;
+pub use control::*;
+
+pub(crate) mod prelude {
+    pub(crate) use super::{
+        EngineControl, EngineControlState, EngineSettings, RocketControlInput, RocketInputType,
+        RocketRoot,
+    };
+}
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins(control::RocketControlPlugin)

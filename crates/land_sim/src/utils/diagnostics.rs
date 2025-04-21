@@ -6,18 +6,19 @@ use bevy_inspector_egui::quick::{FilterQueryInspectorPlugin, WorldInspectorPlugi
 use iyes_perf_ui::prelude::*;
 
 pub fn plugin(app: &mut App) {
-    app.register_type::<rocket::RocketControl>().add_plugins((
-        // Needed for FPS
-        FrameTimeDiagnosticsPlugin,
-        EntityCountDiagnosticsPlugin,
-        SystemInformationDiagnosticsPlugin,
-        // iyes_perf_ui
-        PerfUiPlugin,
-        // bevy_inspector_egui
-        WorldInspectorPlugin::new(),
-        FilterQueryInspectorPlugin::<With<rocket::RocketControl>>::default(),
-    ))
-    .add_systems(Startup, setup);
+    app.register_type::<rocket::EngineControlState>()
+        .add_plugins((
+            // Needed for FPS
+            FrameTimeDiagnosticsPlugin,
+            EntityCountDiagnosticsPlugin,
+            SystemInformationDiagnosticsPlugin,
+            // iyes_perf_ui
+            PerfUiPlugin,
+            // bevy_inspector_egui
+            WorldInspectorPlugin::new(),
+            FilterQueryInspectorPlugin::<With<rocket::EngineControlState>>::default(),
+        ))
+        .add_systems(Startup, setup);
 }
 
 fn setup(mut commands: Commands) {
