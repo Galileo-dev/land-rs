@@ -6,6 +6,11 @@ use crate::trajectories::{APDGSolution, ConvergenceHistory, SimulationParams};
 
 pub mod data_extraction;
 
+/// Scale a vector of values by a factor
+fn scale(values: &[f64], factor: f64) -> Vec<f64> {
+    values.iter().map(|v| v * factor).collect()
+}
+
 pub fn plot_trajectory_3d(
     output: &str,
     title: &str,
@@ -16,7 +21,7 @@ pub fn plot_trajectory_3d(
     let root = BitMapBackend::new(output, (1024, 768)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    // axis limits (U, E, N) + padding
+    // axis limits (U, E, N)
     let (u_min, u_max) = min_max(&pos_u).unwrap_or((0.0, 1.0));
     let (e_min, e_max) = min_max(&pos_e).unwrap_or((0.0, 1.0));
     let (n_min, n_max) = min_max(&pos_n).unwrap_or((0.0, 1.0));
@@ -39,7 +44,7 @@ pub fn plot_trajectory_3d(
             &RED,
         ))?
         .label("Trajectory")
-        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], &RED));
+        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], RED.mix(0.5).filled()));
 
     // thrust vectors
     let max_t = thrust.iter().map(Vector3::norm).fold(0.0, f64::max);
@@ -52,6 +57,7 @@ pub fn plot_trajectory_3d(
             chart.draw_series(LineSeries::new(vec![start, end], &BLUE.mix(0.5)))?;
         }
     }
+    chart.configure_series_labels().border_style(BLACK).draw()?;
 
     root.present()?;
     Ok(())
@@ -60,20 +66,46 @@ pub fn plot_trajectory_3d(
 pub fn plot_position_velocity_time(
     output: &str,
     solution: &APDGSolution,
+    sim: &SimulationParams,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (time, pos_u, pos_e, pos_n, vel_u, vel_e, vel_n) =
-        data_extraction::get_pos_vel_time_data(solution);
+    let (time, t_mag, t_rate, tilt, az, _) = data_extraction::get_thrust_mass_data(solution, sim);
+
+    let t_mag_kn = scale(&t_mag, 1e-3);
+    let t_rate_kns = scale(&t_rate, 1e-3);
+    let t_rate_time = &time[..t_rate_kns.len()];
 
     let root = BitMapBackend::new(output, (1024, 768)).into_drawing_area();
     root.fill(&WHITE)?;
     let cells = root.split_evenly((2, 3));
 
-    single_time_series(&cells[0], &time, &pos_u, "U-Pos (m)", &RED)?;
-    single_time_series(&cells[1], &time, &pos_e, "E-Pos (m)", &GREEN)?;
-    single_time_series(&cells[2], &time, &pos_n, "N-Pos (m)", &BLUE)?;
-    single_time_series(&cells[3], &time, &vel_u, "U-Vel (m/s)", &RED)?;
-    single_time_series(&cells[4], &time, &vel_e, "E-Vel (m/s)", &GREEN)?;
-    single_time_series(&cells[5], &time, &vel_n, "N-Vel (m/s)", &BLUE)?;
+    series_bounds(
+        &cells[0],
+        &time,
+        &t_mag_kn,
+        "Cmd. Vac. Thrust (kN)",
+        sim.t_min_vac * 1e-3,
+        sim.t_max_vac * 1e-3,
+        &BLUE,
+    )?;
+    series_bounds(
+        &cells[1],
+        t_rate_time,
+        &t_rate_kns,
+        "Thrust Mag. Rate (kN/s)",
+        sim.tdot_min * 1e-3,
+        sim.tdot_max * 1e-3,
+        &MAGENTA,
+    )?;
+    series_bounds(
+        &cells[2],
+        &time,
+        &tilt,
+        "Tilt (deg)",
+        0.0,
+        sim.theta_max,
+        &RED,
+    )?;
+    single_time_series(&cells[3], &time, &az, "Azimuth (deg)", &CYAN)?;
 
     root.present()?;
     Ok(())
@@ -121,13 +153,18 @@ pub fn plot_thrust_mass_time(
         &RED,
     )?;
     single_time_series(&cells[3], &time, &az, "Azimuth (deg)", &CYAN)?;
+
+    let mass_t = scale(&mass, 1e-3);
+    let m0_t = sim.m_0 * 1e-3;
+    let mdry_t = sim.m_dry * 1e-3;
+
     series_bounds(
         &cells[4],
         &time,
         &mass,
-        "Mass (kg)",
-        sim.m_dry,
-        sim.m_0,
+        "Mass (x1000 kg)",
+        m0_t,
+        mdry_t,
         &BLACK,
     )?;
 
@@ -283,6 +320,47 @@ pub fn plot_convergence(
         .border_style(&BLACK)
         .draw()?;
 
+    root.present()?;
+    Ok(())
+}
+
+pub fn plot_relaxation_convergence(
+    output: &str,
+    hist: &ConvergenceHistory,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if hist.pos.is_empty() {
+        eprintln!("No convergence data to plot");
+        return Ok(());
+    }
+    let root = BitMapBackend::new(output, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+    const LOG_EPSILON: f64 = 1e-10; // Prevent a log10(0) error
+
+    // Log Max ||aR||
+    let max_aR = hist.aR.iter().fold(0.0, |max, &v| v.abs().max(max));
+
+    let iters = 1..=hist.len();
+    let (min, max) = (0.0, max_aR);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Iteration history of the SC relaxation term",
+            ("sans-serif", 20),
+        )
+        .margin(10)
+        .set_label_area_size(LabelAreaPosition::Left, 60)
+        .set_label_area_size(LabelAreaPosition::Bottom, 40)
+        .build_cartesian_2d(0usize..(hist.len() + 1), min..max)?;
+
+    chart.configure_mesh().draw()?;
+
+    chart
+        .draw_series(LineSeries::new(
+            iters.zip(&hist.aR).map(|(x, &y)| (x, y)),
+            &RED,
+        ))?
+        .label("aR")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
     root.present()?;
     Ok(())
 }

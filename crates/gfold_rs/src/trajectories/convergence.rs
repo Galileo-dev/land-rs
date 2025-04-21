@@ -7,6 +7,7 @@ pub struct ConvergenceHistory {
     pub pos: Vec<f64>,
     pub vel: Vec<f64>,
     pub thrust: Vec<f64>,
+    pub aR: Vec<f64>,
 }
 
 impl ConvergenceHistory {

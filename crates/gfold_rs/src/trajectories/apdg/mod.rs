@@ -115,8 +115,8 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
     let mut pos_log: Vec<f64> = Vec::with_capacity(n_sc);
     let mut vel_log: Vec<f64> = Vec::with_capacity(n_sc);
     let mut thrust_log: Vec<f64> = Vec::with_capacity(n_sc);
+    let mut aR_log: Vec<f64> = Vec::with_capacity(n_sc);
     const LOG_EPSILON: f64 = 1e-10; // Prevent a log10(0) error
-
     for i in 0..n_sc {
         println!("Starting Iteration {}...", i + 1);
 
@@ -138,25 +138,24 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
                 let solution_differences =
                     calculate_solution_differences(&prev_trajectory, &new_solution);
                 println!(
-                    "Iteration {}: Max Absolute Differences - Pos: {:.6e}, Vel: {:.6e}, Mass: {:.6e}, Thrust: {:.6e}, Combined Relative: {:.6e}",
+                    "Iteration {}: Max Absolute Differences - Pos: {:.6e}, Vel: {:.6e}, Mass: {:.6e}, Thrust: {:.6e}, Max Relative: {:.6e}",
                     i + 1,
-                    solution_differences.pos,
-                    solution_differences.vel,
-                    solution_differences.mass,
-                    solution_differences.thrust,
-                    solution_differences.combined_relative
+                    solution_differences.abs_pos,
+                    solution_differences.abs_vel,
+                    solution_differences.abs_mass,
+                    solution_differences.abs_thrust,
+                    solution_differences.max_relative
                 );
 
                 // Store log10 of differences for plotting later
-                pos_log.push((solution_differences.pos + LOG_EPSILON).log10());
-                vel_log.push((solution_differences.vel + LOG_EPSILON).log10());
-                thrust_log.push((solution_differences.thrust + LOG_EPSILON).log10());
-
+                pos_log.push((solution_differences.abs_pos + LOG_EPSILON).log10());
+                vel_log.push((solution_differences.abs_vel + LOG_EPSILON).log10());
+                thrust_log.push((solution_differences.abs_thrust + LOG_EPSILON).log10());
+                aR_log.push((solution_differences.abs_aR + LOG_EPSILON).log10());
                 // Promote new solution to current solution and iterate until convergence
                 current_solution = new_solution;
 
-                if solution_differences.combined_relative < settings.solver_settings().sc_tolerance
-                {
+                if solution_differences.max_relative < settings.solver_settings().sc_tolerance {
                     println!(
                         "Converged after {} iterations (Tolerance: {:.1e}).",
                         i + 1,
@@ -177,15 +176,20 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
 
     println!("Successive Convexification Finished.");
     println!("\nConvergence History (Log10 Max Differences):");
-    println!("Iteration | Pos Diff (log10) | Vel Diff (log10) | Thrust Diff (log10)");
-    println!("----------|------------------|------------------|---------------------");
+    println!(
+        "Iteration | Pos Diff (log10) | Vel Diff (log10) | Thrust Diff (log10) | aR Diff (log10)"
+    );
+    println!(
+        "----------|------------------|------------------|---------------------|------------------|"
+    );
     for i in 0..pos_log.len() {
         println!(
-            "{:>9} | {:>16.6e} | {:>16.6e} | {:>19.6e}",
+            "{:>9} | {:>16.6e} | {:>16.6e} | {:>19.6e} | {:>16.6e}",
             i + 1,
             pos_log[i],
             vel_log[i],
-            thrust_log[i]
+            thrust_log[i],
+            aR_log[i]
         );
     }
 
@@ -195,6 +199,7 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
             pos: pos_log,
             vel: vel_log,
             thrust: thrust_log,
+            aR: aR_log,
         },
     ))
 }
@@ -202,11 +207,17 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
 /// Holds the maximum absolute differences between two solutions across all time steps
 #[derive(Debug, Clone, Copy)]
 struct SolutionDifferences {
-    pos: f64,               // max_k ||r_k^(i) - r_k^(i-1)||
-    vel: f64,               // max_k ||v_k^(i) - v_k^(i-1)||
-    mass: f64,              // max_k |m_k^(i) - m_k^(i-1)|
-    thrust: f64,            // max_k ||t_k^(i) - t_k^(i-1)||
-    combined_relative: f64, // Just a combination of the above
+    abs_pos: f64,      // max_k ||r2[k] - r1[k]|| for all k
+    abs_vel: f64,      // max_k ||v2[k] - v1[k]|| for all k
+    abs_mass: f64,     // max_k |m2[k] - m1[k]| for all k
+    abs_thrust: f64,   // max_k ||t2[k] - t1[k]|| for all k
+    abs_aR: f64,       // max_k ||aR2[k] - aR1[k]|| for all k
+    rel_pos: f64,      // max_k ||r2[k] - r1[k]|| / (||r1[k]|| + epsilon) for all k
+    rel_vel: f64,      // max_k ||v2[k] - v1[k]|| / (||v1[k]|| + epsilon) for all k
+    rel_mass: f64,     // max_k |m2[k] - m1[k]| / (|m1[k]| + epsilon) for all k
+    rel_thrust: f64,   // max_k ||t2[k] - t1[k]|| / (||t1[k]|| + epsilon) for all k
+    rel_aR: f64,       // max_k ||aR2[k] - aR1[k]|| / (||aR1[k]|| + epsilon) for all k
+    max_relative: f64, // Maximum of all relative (rel_pos, rel_vel, rel_mass, rel_thrust, rel_aR).
 }
 
 /// Calculates the maximum absolute differences between two trajectories,
@@ -214,55 +225,88 @@ struct SolutionDifferences {
 fn calculate_solution_differences(sol1: &APDGSolution, sol2: &APDGSolution) -> SolutionDifferences {
     let steps1 = &sol1.steps;
     let steps2 = &sol2.steps;
-    let n = steps1.len();
+
+    assert_eq!(
+        steps1.len(),
+        steps2.len(),
+        "Cannot compare solutions with different numbers of steps."
+    );
+
     let epsilon = 1e-9; // avoid division by zero
 
-    let mut max_pos_diff: f64 = 0.0;
-    let mut max_vel_diff: f64 = 0.0;
-    let mut max_mass_diff: f64 = 0.0;
-    let mut max_thrust_diff: f64 = 0.0;
-    let mut max_combined_relative_diff: f64 = 0.0;
+    let mut max_abs_pos = 0.0_f64;
+    let mut max_abs_vel = 0.0_f64;
+    let mut max_abs_mass = 0.0_f64;
+    let mut max_abs_thrust = 0.0_f64;
+    let mut max_abs_aR = 0.0_f64;
 
-    for k in 0..n {
-        let s1 = &steps1[k];
-        let s2 = &steps2[k];
+    let mut max_rel_pos = 0.0_f64;
+    let mut max_rel_vel = 0.0_f64;
+    let mut max_rel_mass = 0.0_f64;
+    let mut max_rel_thrust = 0.0_f64;
+    let mut max_rel_aR = 0.0_f64;
 
+    for (s1, s2) in steps1.iter().zip(steps2.iter()) {
         // Absolute differences for history tracking
-        let pos_diff_norm = (s2.r - s1.r).norm();
-        max_pos_diff = max_pos_diff.max(pos_diff_norm);
+        let abs_pos_diff = (s2.r - s1.r).norm();
+        max_abs_pos = max_abs_pos.max(abs_pos_diff);
 
-        let vel_diff_norm = (s2.v - s1.v).norm();
-        max_vel_diff = max_vel_diff.max(vel_diff_norm);
+        let abs_vel_diff = (s2.v - s1.v).norm();
+        max_abs_vel = max_abs_vel.max(abs_vel_diff);
 
-        let mass_diff_abs = (s2.m - s1.m).abs();
-        max_mass_diff = max_mass_diff.max(mass_diff_abs);
+        let abs_mass_diff = (s2.m - s1.m).abs();
+        max_abs_mass = max_abs_mass.max(abs_mass_diff);
 
-        let thrust_diff_norm = (s2.t - s1.t).norm();
-        max_thrust_diff = max_thrust_diff.max(thrust_diff_norm);
+        let abs_thrust_diff = (s2.t - s1.t).norm();
+        max_abs_thrust = max_abs_thrust.max(abs_thrust_diff);
 
-        // Combined Relative difference for convergence check
         let r1_norm = s1.r.norm();
-        let r_rel_diff = pos_diff_norm / (r1_norm + epsilon);
-        max_combined_relative_diff = max_combined_relative_diff.max(r_rel_diff);
-
         let v1_norm = s1.v.norm();
-        let v_rel_diff = vel_diff_norm / (v1_norm + epsilon);
-        max_combined_relative_diff = max_combined_relative_diff.max(v_rel_diff);
-
         let m1_abs = s1.m.abs();
-        let m_rel_diff = mass_diff_abs / (m1_abs + epsilon);
-        max_combined_relative_diff = max_combined_relative_diff.max(m_rel_diff);
-
         let t1_norm = s1.t.norm();
-        let t_rel_diff = thrust_diff_norm / (t1_norm + epsilon);
-        max_combined_relative_diff = max_combined_relative_diff.max(t_rel_diff);
+        let aR1_norm = s1.aR.norm();
+
+        let rel_pos_diff = abs_pos_diff / (r1_norm + epsilon);
+        max_rel_pos = max_rel_pos.max(rel_pos_diff);
+
+        let rel_vel_diff = abs_vel_diff / (v1_norm + epsilon);
+        max_rel_vel = max_rel_vel.max(rel_vel_diff);
+
+        let rel_mass_diff = abs_mass_diff / (m1_abs + epsilon);
+        max_rel_mass = max_rel_mass.max(rel_mass_diff);
+
+        let rel_thrust_diff = abs_thrust_diff / (t1_norm + epsilon);
+        max_rel_thrust = max_rel_thrust.max(rel_thrust_diff);
+
+        let abs_aR_diff = (s2.aR - s1.aR).norm();
+        max_abs_aR = max_abs_aR.max(abs_aR_diff);
+
+        let rel_aR_diff = abs_aR_diff / (s1.aR.norm() + epsilon);
+        max_rel_aR = max_rel_aR.max(rel_aR_diff);
     }
 
+    // Find the maximum among all the calculated maximum relative differences
+    let overall_max_relative = [
+        max_rel_pos,
+        max_rel_vel,
+        max_rel_mass,
+        max_rel_thrust,
+        max_rel_aR,
+    ]
+    .into_iter()
+    .fold(0.0f64, f64::max);
+
     SolutionDifferences {
-        pos: max_pos_diff,
-        vel: max_vel_diff,
-        mass: max_mass_diff,
-        thrust: max_thrust_diff,
-        combined_relative: max_combined_relative_diff,
+        abs_pos: max_abs_pos,
+        abs_vel: max_abs_vel,
+        abs_mass: max_abs_mass,
+        abs_thrust: max_abs_thrust,
+        abs_aR: max_abs_aR,
+        rel_pos: max_rel_pos,
+        rel_vel: max_rel_vel,
+        rel_mass: max_rel_mass,
+        rel_thrust: max_rel_thrust,
+        rel_aR: max_rel_aR,
+        max_relative: overall_max_relative,
     }
 }
