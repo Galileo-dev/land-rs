@@ -71,7 +71,38 @@
     short: "SOC",
     long: "Second Order Cone",
   ),
+  (
+    key: "rlv",
+    short: "RLV",
+    long: "Reusable Launch Vehicle",
+  ),
+  (
+    key: "6dof",
+    short: "6DOF",
+    long: "Six Degrees of Freedom",
+  ),
+  (
+    key: "lp",
+    short: "LP",
+    long: "Linear Programming",
+  ),
+  (
+    key: "fyp",
+    short: "FYP",
+    long: "Final Year Project",
+  ),
+  (
+    key: "sc",
+    short: "SCvx",
+    long: "Successive Convexification",
+  ),
+  (
+    key: "ipm",
+    short: "IPM",
+    long: "Interior Point Method",
+  ),
 )
+
 
 #register-glossary(abbreviations)
 
@@ -79,7 +110,7 @@
 #codly(zebra-fill: none, languages: codly-languages)
 
 
-#set text(font: "Inter", size: 11pt, fill: rgb(51, 51, 51))
+#set text(font: "Times New Roman", size: 11pt, fill: rgb(51, 51, 51))
 #show raw: set text(font: "Monaspace Argon", size: 10pt, fill: rgb(80, 80, 80))
 #set par(leading: 0.7em)
 
@@ -170,7 +201,7 @@
 #include "./chapters/progress_update.typ"
 #pagebreak()
 
-// #include "./chapters/appendices.typ"
-// #pagebreak()
+#include "./chapters/appendices.typ"
+#pagebreak()
 
 #bibliography
