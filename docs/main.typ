@@ -173,7 +173,7 @@
 #include "./chapters/abstract.typ"
 #pagebreak()
 
-#include "./chapters/literature_review.typ"
+#include "./chapters/problem_analysis.typ"
 #pagebreak()
 
 #include "./chapters/methodology.typ"

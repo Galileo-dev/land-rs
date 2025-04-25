@@ -149,7 +149,7 @@ Rust is well equipped to handle convex optimisation tasks; a very prominent libr
 
 Clarabel does not offer a modelling language and, as such, requires much reformulation of the problem to fit the specification of the solver. Instead, a patch was applied to a linear programming library, which offers a variety of ways to model and solve linear programming problems; however, it lacked the support for the second-order cone constraint required by the above algorithm @Szmuk2016.
 
-`patch-crate` was used to patch the `good_lp` crate to add support for the second-order cone constraints.
+`patch-crate` was used to patch the `good_lp` @good_lp_patch crate to add support for the second-order cone constraints.
 The general form of the problem is as follows:
 
 $ min c^T x $

@@ -1,9 +1,10 @@
-= Literature Review
+= Problem Analysis
 
 == Reusable Rocket and The Importance of Precision Landing
 In the past 50 years, autonomous spacecraft have brought humans and satellites to orbit, safely returned humans to Earth, and landed rovers on Mars. Precise landing capability allows missions to land rovers closer to areas of interest @Bonfiglio2011.
 
 Landing an autonomous spacecraft or rocket is challenging—landing within meters of a predetermined target under varying atmospheric conditions is crucial. This precision enables fully reusable rockets, akin to aircraft refuelling and reuse. Commercial companies like SpaceX and Blue Origin have recently demonstrated landings within meters of their targets @blackmore2017.
+
 
 == Problem Analysis
 When a vehicle enters an atmosphere, it encounters several challenges:
@@ -19,12 +20,16 @@ The first landing attempt must succeed; failure means vehicle destruction on imp
 === Hardware Limits
 A successful guidance system must compute divert trajectories without exceeding hardware capabilities or safety constraints. Large rocket engines have thrust constraints preventing hovering, requiring continuous descent to minimize propellant usage @blackmore2017.
 
+
+
 == Trajectory Optimization Approaches
 - *Polynomial guidence:* Used in the apollo program to land astornauts on the moon, trajectories are represented as polynomials parameterised by time, and while it is very efficent to compute enabling missions with very limited computation power, like that of the @agc,it also require precise coefficeients that are precomputed and stored @Klumpp1974 However it is not fuel optimal @Ross2004.
 
 - *Convex Optimization:* Used by SpaceX to land their Falcon9 1st stage and the new Starship 1st and 2nd stage. Convex optimization methods like @gfold are computationally efficient but require accurate models of the vehicle and their environment @G-FOLD2012.
 
 - *Reinforcement Learning:* Reinforcement learning methods like @rl are more robust but require extensive training and are computationally expensive @FURFARO2020156.
+
+The main challange involves solving the fuel-optimal @apdg problem in real-time as it's impossible to precompute the optimal trajectory for every possible scenario and especially with atmosphereic disturbances like wind. Convex optimisation and Reinforcement learning
 
 === G-FOLD Algorithm
 The @gfold algorithm operates through lossless convexification, enabling real-time computation of fuel-optimal trajectories @G-FOLD2012. While current implementations use Python to generate C code with CVXGEN @Mattingley2012, this mixed-language approach can introduce unsafe assumptions that might crash programs during critical phases like rocket descent.

@@ -20,16 +20,15 @@ Bevy @ecs is a critical part of the Bevy game engine. It is a powerful framework
 #include "../code/ecs.typ"
 
 ==== Rapier Physics Engine
-The Rapier physics engine is built in Rust. It supports both 2D and 3D physics however we will use the 3D physics engine for this project. Most relevant to this project Rapier supports joint constraints, collision detection, and rigid body dynamics. This is important as we need to simulate the rocket's flight trajectory, engine thrust, and nozzle control @Crozet2024dimforge.
-
+The Rapier physics engine is built in Rust. It supports both 2D and 3D physics (we will use the 3D physics engine to implement a @6dof rocket simulation). Most relevant to this project Rapier supports joint constraints, collision detection, and rigid body dynamics. This is important as we need to simulate the rocket's flight trajectory and engine thrust and control @Crozet2024dimforge.
 
 == Simulation Components
 
 The simulation is made up of a few key components:
-- Main Rocket Simulation Module
-- Camera Systems
-- User Interaction Systems
-- Utility & Diagnostic Systems
+- *Main Rocket Simulation Module*: Handles updating the rocket's various systems, for now just the engine thrust and gimbal control.
+- *Camera Systems*: Handles the camera's position and rotation to follow the rocket and pan around the rocket.
+- *User Interaction Systems*: Handles the user's input, A double click system allows for some more advanced gestures to be used.
+- *Utility & Diagnostic Systems*: Displays many of the diagnostics from the rocket's systems to the user for debugging and monitoring purposes.
 
 ==== Main Rocket Simulation Module
 #include "../code/rocket.typ"
