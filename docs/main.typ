@@ -101,6 +101,26 @@
     short: "IPM",
     long: "Interior Point Method",
   ),
+  (
+    key: "ppo",
+    short: "PPO",
+    long: "Proximal Policy Optimisation",
+  ),
+  (
+    key: "sac",
+    short: "SAC",
+    long: "Soft Actor-Critic",
+  ),
+  (
+    key: "drl",
+    short: "Deep-RL",
+    long: "Deep Reinforcement Learning",
+  ),
+  (
+    key: "zemzev",
+    short: "ZEM/ZEV",
+    long: "Zero-Effort-Miss/Zero-Effort-Velocity",
+  ),
 )
 
 
@@ -171,6 +191,9 @@
 
 // Abstract
 #include "./chapters/abstract.typ"
+#pagebreak()
+
+#include "./chapters/literature_review.typ"
 #pagebreak()
 
 #include "./chapters/problem_analysis.typ"

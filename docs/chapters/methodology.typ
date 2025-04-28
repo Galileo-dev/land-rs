@@ -3,6 +3,10 @@
 = Methodology
 
 == Approach
+I propose a modular Rust library implementing @gfold using Clarabel.rs for second-order cone solving and a python library implement a @rl approach using Pytorch. These libraries will target real-time performance under atmospheric conditions and be hosted on GitHub.
+
+I've opted for Rust, a language that offers high-level features with low-level speeds, provides memory safety without a garbage collector and doesn't allow undefined behaviour @rust_reference_undefined_behavior, making it ideal for safety-critical applications such as running the guidance system of a spacecraft @Pinho2019.
+
 - Implement the @gfold algorithm with optimisations from Fast Algorithm for Onboard Atmospheric Powered Descent Guidance @ChenYushu2023AFAf using Rust with Clarabel.rs as our convex solver. This will allow for real-time performance and memory safety, vital for onboard computations during rocket descent.
 
 - Implement a @rl approach using Pytorch to compare the performance and adaptability with the @gfold algorithm.
