@@ -25,13 +25,15 @@ I've opted for Rust, a language that offers high-level features with low-level s
 
 - Create edge cases to test against, such as wind and potential mass shifts, to mimic real-world conditions and test reactions by different algorithms.
 
-== Development Plan
+== Task Completed
 
-- [x] Initial implementation of the simulation environment using Bevy for creating a basic wireframe visualisation for landing trajectories and Rapier for realistic physics simulations.
+- [x] Implementation of the simulation environment using Bevy for creating a basic wireframe visualisation for landing trajectories and Rapier for realistic physics simulations.
 
-- [ ] Initial implementation of the @gfold algorithm, focusing on modular design and adherence to real-time constraints
+- [x] Implementation of the @gfold algorithm, focusing on a modular design and adherence to real-time constraints
 
-- [ ] Develop a communication protocol between the simulation environment and the algorithms to allow for real-time two-way communication while decoupling the simulation from the algorithms.
+- [x] Develop a communication protocol between the simulation environment and the algorithms to allow for real-time two-way communication while decoupling the simulation from the algorithms.
+
+- [x] Add @socp to an existing Rust linear programming library to make modeling constraints easier.
 
 - [ ] Advanced atmospheric simulation integration of the simulation environment to truly test the robustness of the algorithms against real-world
 
@@ -39,6 +41,4 @@ I've opted for Rust, a language that offers high-level features with low-level s
 
 - [ ] Conduct a detailed comparative analysis between @gfold and the @rl approach on pre-defined parameters like fuel efficiency and adaptability.
 
-- [ ] Extensive documentation and reporting through a final year project report and code documentation.
-
-- [ ] Implement a CI/CD pipeline to automate the testing and notify of potential regressions during pull requests.
+- [x] Extensive documentation and reporting through a final year project report and code documentation.

@@ -32,17 +32,14 @@ The goal is to find the optimal thrust vector $T(t)$ that minimises fuel consump
   underline(it.body)
 }
 
+#show: equate.with(breakable: true, sub-numbering: false)
+#set math.equation(numbering: "(1)", supplement: [Eq.])
+#counter(math.equation).update(60)
 
-#set enum(numbering: "a)")
-+ Assume $k in [0, k_f]$ unless otherwise specified.
-+
+
+Assume $k in [0, k_f]$ unless otherwise specified.
 
 #showybox(title: "Problem 4 from " + cite(<Szmuk2016>))[
-  #show: equate.with(breakable: true, sub-numbering: false)
-  #set math.equation(numbering: "(1)", supplement: [Eq.])
-  #counter(math.equation).update(60)
-
-
   === Objective function:
 
   $ min_(T, Gamma) quad -w_(m,f) m[k_f] + w_(kappa, a, R) norm(kappa_(a, R)) " subject to:" $ <objective_function>
@@ -138,6 +135,25 @@ The goal is to find the optimal thrust vector $T(t)$ that minimises fuel consump
 #show heading: it => {
   it.body
 }
+
+#showybox(title: "Algorithm 1 from " + cite(<Szmuk2016>))[
+  #set enum(numbering: "a)")
+  + Specify vehicle and environmental parameters (e.g. $m_"dry", theta_"max", P_"amb"$, etc.), boundary conditions (e.g. $r_0, Gamma_0, m_0$, etc.), and algorithm parameters (e.g. $N, n_"sc", w_(m,f)$, etc.).
+  + Specify a time of flight guess, $t_(f,s)$, and compute $Delta tau$ using @time_of_flight_guess.
+  #counter(math.equation).update(54)
+  $ Delta tau = t_(f,s) / k_f $ <time_of_flight_guess>
+  #counter(math.equation).update(94)
+  + Compute mass and speed profiles for first iteration using @mass_profile and @speed_profile, for integers $k in [0, k_n]$.
+    $ mu[k] = ( (k_n - k) / k_n ) m_0 + ( k / k_n ) m_"dry" $ <mass_profile>
+    $ s[k] = ( (k_n - k) / k_n ) norm(v_0) + ( k / k_n ) norm(v_f) $ <speed_profile>
+  + Solve Problem 4 using $Delta tau$, $mu$, and $s$ to obtain trajectory $cal(T)_0$.
+  + For $i = 1, 2, ..., n_"sc" - 1$
+    #set enum(numbering: "a)")
+    + Solve Problem 5, linearizing about trajectory $cal(T)_(i-1)$, and obtaining trajectory $cal(T)_i$.
+    + Exit if $cal(T)_i$ is within some acceptable tolerance of $cal(T)_(i-1)$, or if $i = n_"sc" - 1$.
+    #set enum(numbering: "1.") // Reset outer numbering
+]
+
 
 #pagebreak()
 

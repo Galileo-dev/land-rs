@@ -208,6 +208,10 @@
 #include "./chapters/convex_approch.typ"
 #pagebreak()
 
+#include "./chapters/guidance_controller.typ"
+#pagebreak()
+
+
 // #include "./chapters/rl_approach.typ"
 // #pagebreak()
 
