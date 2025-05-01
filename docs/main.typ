@@ -163,6 +163,9 @@
 // Use Main page stylings
 #show: main-page-style
 
+// Abstract
+#include "./chapters/abstract.typ"
+#pagebreak()
 
 // Table of contents
 #outline(
@@ -189,8 +192,7 @@
 #abbreviations-page(abbreviations)
 #pagebreak()
 
-// Abstract
-#include "./chapters/abstract.typ"
+#include "./chapters/introduction.typ"
 #pagebreak()
 
 #include "./chapters/literature_review.typ"
@@ -228,7 +230,7 @@
 #include "./chapters/progress_update.typ"
 #pagebreak()
 
+#bibliography
+
 #include "./chapters/appendices.typ"
 #pagebreak()
-
-#bibliography
