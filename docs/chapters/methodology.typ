@@ -27,6 +27,8 @@ Rust was choosen as a language that offers high-level features with low-level sp
 
 == Task Completed
 
+- [x] Conducted initial research on the @gfold algorithm and convex optimization by reviewing research papers. (Due to current gaps in understanding, I have enrolled in Stanford EE364A for a deeper dive @boyd_vandenberghe_ee364a.)
+
 - [x] Implementation of the simulation environment using Bevy for creating a basic wireframe visualisation for landing trajectories and Rapier for realistic physics simulations.
 
 - [x] Implementation of the @gfold algorithm, focusing on a modular design and adherence to real-time constraints

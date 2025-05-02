@@ -213,21 +213,7 @@
 #include "./chapters/guidance_controller.typ"
 #pagebreak()
 
-
-// #include "./chapters/rl_approach.typ"
-// #pagebreak()
-
-// #include "./chapters/preliminary_results.typ"
-// #pagebreak()
-
-// #include "./chapters/timeline_and_plan.typ"
-// #pagebreak()
-//
-
-// #include "./chapters/conclusion.typ"
-// #pagebreak()
-
-#include "./chapters/progress_update.typ"
+#include "./chapters/conclusion.typ"
 #pagebreak()
 
 #bibliography
