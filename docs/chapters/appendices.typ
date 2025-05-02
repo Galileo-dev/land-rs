@@ -16,3 +16,13 @@
 === ZEM/ZEV Python Sample <zemzev_sample_code>
 #include "../code/zemzev_hoverslam.typ"
 
+=== Rocket Engine Code <rocket-engine-code>
+#include "../code/rocket/engine.typ"
+
+=== Rocket Body Code <rocket-body-code>
+#include "../code/rocket/body.typ"
+
+=== Rocket Engine Joint Code <rocket-engine-joint-code>
+#include "../code/rocket/joint.typ"
+
+
