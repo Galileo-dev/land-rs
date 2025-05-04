@@ -121,6 +121,16 @@
     short: "ZEM/ZEV",
     long: "Zero-Effort-Miss/Zero-Effort-Velocity",
   ),
+  (
+    key: "lvs",
+    short: "LVS",
+    long: "Lander Vision System",
+  ),
+  (
+    key: "trn",
+    short: "TRN",
+    long: "Terrain Relative Navigation",
+  ),
 )
 
 
@@ -143,7 +153,7 @@
 }
 
 // Define bibliography
-#let bibliography = bibliography("references.bib", style: "ieee")
+#let bibliography = bibliography("references.bib", style: "ieee", title: "References")
 
 // Define the checklist style
 #show: checklist.with(fill: luma(95%), stroke: blue, radius: .2em)
@@ -171,6 +181,7 @@
 #outline(
   title: [Contents],
   indent: 1em,
+  depth: 1,
 )
 #pagebreak()
 
@@ -201,22 +212,26 @@
 #include "./chapters/problem_analysis.typ"
 #pagebreak()
 
+#include "./chapters/technology_stack.typ"
+#pagebreak()
+
+#include "./chapters/implementation/index.typ"
+#pagebreak()
+
 #include "./chapters/methodology.typ"
 #pagebreak()
 
-#include "./chapters/simulation.typ"
-#pagebreak()
-
-#include "./chapters/convex_approch.typ"
-#pagebreak()
-
-#include "./chapters/guidance_controller.typ"
+#include "./chapters/results.typ"
 #pagebreak()
 
 #include "./chapters/conclusion.typ"
 #pagebreak()
 
+#include "./chapters/future_work.typ"
+
+
 #bibliography
 
 #include "./chapters/appendices.typ"
 #pagebreak()
+

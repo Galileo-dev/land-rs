@@ -1,7 +1,7 @@
 #import "@preview/equate:0.3.1": equate
 #import "@preview/showybox:2.0.4": showybox
 
-= Convex Optimisation
+== Convex Optimisation
 
 For this @fyp I implemented *Successive Convexification for Fuel-Optimal
 Powered Landing with Aerodynamic Drag
@@ -25,7 +25,9 @@ We remove the non-linearities through @sc:
 We use a thrust vector $T(t)$ as the direction and magnitude of the thrust force for a given timestep $Delta t$.
 The goal is to find the optimal thrust vector $T(t)$ that minimises fuel consumption (or maximises final mass) while keeping the rocket on a safe and precise landing trajectory.
 
-== Successive Convexification for @apdg
+// TOOD: add an explaination of convex optimisation from https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9905530
+
+=== Successive Convexification for @apdg
 
 // underline the headings
 #show heading: it => {
@@ -157,7 +159,7 @@ Assume $k in [0, k_f]$ unless otherwise specified.
 
 #pagebreak()
 
-== Code Review
+== Code Implementation
 
 Rust is well equipped to handle convex optimisation tasks; a very prominent library, *Clarabel*, is written entirely in pure Rust; this is also used as the default solver for *CVXPY*, a well-regarded Python library for modelling and solving convex optimisation problems.
 
@@ -185,7 +187,7 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 == Results
 
 #figure(
-  image("../assets/trajectory_chart.png", width: 80%),
+  image("../../assets/trajectory_chart.png", width: 80%),
   caption: [*Three-dimensional trajectory produced by the last successive convexification iteration.* The dots along the
     trajectory indicate discretisation points, and the lines intersecting the trajectory at the discretisation points represent scaled com-
     manded thrust vectors.],
@@ -193,14 +195,14 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
 
 #figure(
-  image("../assets/pos_vel_chart.png", width: 80%),
+  image("../../assets/pos_vel_chart.png", width: 80%),
   caption: [*Up, east, and north components of the positions and velocities.* This figure shows a componentwise representation
     of the positions and velocities of the trajectory shown in Figure 1. The hop maneuver is evident in the up-position plot at the top
     left],
 ) <pos_vel_chart>
 
 #figure(
-  image("../assets/thrust_mass_chart.png", width: 80%),
+  image("../../assets/thrust_mass_chart.png", width: 80%),
   caption: [*Thrust profile of the converged trajectory.* In the top left plot, the vehicle’s vacuum thrust profile is shown, along
     with the variable Γ, and the minimum and maximum thrust constraints. In the top right plot, the thrust magnitude rate is shown
     along with its minimum and maximum bounds. The bottom left plot shows the tilt angle of the commanded thrust vector, as well
@@ -208,18 +210,18 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 ) <thrust_mass_chart>
 
 #figure(
-  image("../assets/mass_chart.png", width: 80%),
+  image("../../assets/mass_chart.png", width: 80%),
   caption: [*Vehicle mass as a function of time.* The dashed lines at the top and bottom of the figures represent the initial mass
     and the dry mass of the vehicle, respectively.],
 ) <mass_chart>
 
 #figure(
-  image("../assets/convergence_chart.png", width: 80%),
+  image("../../assets/convergence_chart.png", width: 80%),
   caption: [*Iteration history of position, velocity, and thrust.* Each plot shows the quantity $log max_k delta x_i [k]$ at each SC iteration for which $i > 0$.],
 ) <convergence_chart>
 
 #figure(
-  image("../assets/relaxation_convergence_chart.png", width: 80%),
+  image("../../assets/relaxation_convergence_chart.png", width: 80%),
   caption: [*Iteration history of the SC relaxation term.* The figure shows the maximum value of $||a_R||$ over all $k in [0, k_f]$ for each SC iteration.],
 ) <relaxation_convergence_chart>
 
