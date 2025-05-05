@@ -136,6 +136,11 @@
     short: "LSTM",
     long: "Long Short-Term Memory",
   ),
+  (
+    key: "mpc",
+    short: "MPC",
+    long: "Model Predictive Control",
+  ),
 )
 
 

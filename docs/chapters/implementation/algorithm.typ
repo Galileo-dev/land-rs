@@ -3,6 +3,12 @@
 
 == Convex Optimisation
 
+=== Background
+
+Convex optimisation aims to minimise a convex objective function over a set convex of convex constraints.
+
+=== Implementation
+
 For this @fyp I implemented *Successive Convexification for Fuel-Optimal
 Powered Landing with Aerodynamic Drag
 and Non-Convex Constraints* @Szmuk2016 which formulates @apdg as a successive convexification problem using @sc to handle the non-convex constraints, using a procedure that:
