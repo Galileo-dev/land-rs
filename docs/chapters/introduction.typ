@@ -5,7 +5,6 @@ Landing an autonomous spacecraft or rocket is challenging; landing within meters
 
 Historically, onboard computational power was a significant factor that dictated which algorithms could be used for landing, but with modern hardware and modern guidance, computer architecture like the Spacex Falcon 9 or Starship with its triplex redundant system.
 
-
 Commercial companies like Spacex and Blue Origin have recently demonstrated landings within meters of their targets @blackmore2017.
 
 For Mars 2020, a combination of @trn and @lvs successfully landed Perseverance *just 5m* from its aimpoint inside a crater covered with landing hazards, the new system significantly outperformed the mission requirements and was a key factor for immediate access to valuable geological samples @MARS2020.

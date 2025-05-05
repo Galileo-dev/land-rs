@@ -17,7 +17,10 @@ A trajectory is defined as a temporal state and control signal over time @Malyut
 == Non-convexity
 As mentioned in the introduction, the trajectory generation problem is almost always non-convex, This makes it difficult to efficently and accurately solve a trajectory generation problem, however we can apply a systematic approach to handle these non-convexitie and generate a feasible trajectory using a convex solver. The two main methods are:
 
-- *Lossless Convexification*: involves reformulating the non-convex problem a convex one through variable substitution and "lifting" of the control inputs into a higher-dimensional space @Malyuta2022. Most importantly the new problem is globally optimal of the original non-convex problem. This is why it's called "lossless convexification (LCvx)", and it can be solve with a single call to a convex solver @Malyuta2022
+- *Lossless Convexification*: involves reformulating the non-convex problem a convex one through variable substitution and "lifting" of the control inputs into a higher-dimensional space @Malyuta2022. Most importantly the new problem is globally optimal of the original non-convex problem. This is why it's called "lossless convexification (LCvx)", and it can be solve with a single call to a convex solver @Malyuta2022.
+
+- *Sequential convex programming (Successive Convexification)*: involves a iterative process of linearizing the non-convex elements about a point obtained from the previous solution. This iteration process stops once a user-defined convergence criterion is met @Szmuk2016
+
 == Small Margin for Error
 The first landing attempt must succeed; failure means vehicle destruction on impact. Carrying extra fuel for a second attempt is primarily infeasible. Large rocket engines struggle to throttle down to hover and require continuous propellant to maintain altitude. Most large rockets don't have a low enough minimum throttle, so, during landing, the rocket will have a @twr above zero. When the velocity reaches zero, the rocket will start going back up @blackmore2017.
 
