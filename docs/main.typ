@@ -131,6 +131,11 @@
     short: "TRN",
     long: "Terrain Relative Navigation",
   ),
+  (
+    key: "lstm",
+    short: "LSTM",
+    long: "Long Short-Term Memory",
+  ),
 )
 
 

@@ -43,7 +43,39 @@ abstract = { Well before Curiosity’s successful landing at Gale Crater on the 
   keywords={Control systems;Automatic control;Societies;Production facilities;Road transportation;Design engineering;Human factors;Signal processing;Industrial control;Actuators},
   doi={10.1109/MCS.2003.1213600}
 }
-
+@ARTICLE{Malyuta2022,
+  author={Malyuta, Danylo and Reynolds, Taylor P. and Szmuk, Michael and Lew, Thomas and Bonalli, Riccardo and Pavone, Marco and Açıkmeşe, Behçet},
+  journal={IEEE Control Systems Magazine}, 
+  title={Convex Optimization for Trajectory Generation: A Tutorial on Generating Dynamically Feasible Trajectories Reliably and Efficiently}, 
+  year={2022},
+  volume={42},
+  number={5},
+  pages={40-113},
+  keywords={Codes;Urban areas;Optimal control;Tutorials;Transforms;Convex functions;Real-time systems;Autonomous vehicles;Autonomous aerial vehicles;Drones;Trajectory tracking},
+  doi={10.1109/MCS.2022.3187542}
+}
+@Article{Xue2023,
+AUTHOR = {Xue, Shuai and Bai, Hongyang and Zhao, Daxiang and Zhou, Junyan},
+TITLE = {Research on Intelligent Control Method of Launch Vehicle Landing Based on Deep Reinforcement Learning},
+JOURNAL = {Mathematics},
+VOLUME = {11},
+YEAR = {2023},
+NUMBER = {20},
+ARTICLE-NUMBER = {4276},
+URL = {https://www.mdpi.com/2227-7390/11/20/4276},
+ISSN = {2227-7390},
+ABSTRACT = {A launch vehicle needs to adapt to a complex flight environment during flight, and traditional guidance and control algorithms can hardly deal with multi-factor uncertainties due to the high dependency on control models. To solve this problem, this paper designs a new intelligent flight control method for a rocket based on the deep reinforcement learning algorithm driven by knowledge and data. In this process, the Markov decision process of the rocket landing section is established by designing a reinforcement function with consideration of the combination effect on the return of the terminal constraint of the launch vehicle and the cumulative return of the flight process of the rocket. Meanwhile, to improve the training speed of the landing process of the launch vehicle and to enhance the generalization ability of the model, the strategic neural network model is obtained and trained via the form of a long short-term memory (LSTM) network combined with a full connection layer as a landing guidance strategy network. The proximal policy optimization (PPO) is the training algorithm of reinforcement learning network parameters combined with behavioral cloning (BC) as the reinforcement learning pre-training imitation learning algorithm. Notably, the rocket-borne environment is transplanted to the Nvidia Jetson TX2 embedded platform for the comparative testing and verification of this intelligent model, which is then used to generate real-time control commands for guiding the actual flying and landing process of the rocket. Further, comparisons of the results obtained from convex landing optimization and the proposed method in this work are performed to prove the effectiveness of this proposed method. The simulation results show that the intelligent control method in this work can meet the landing accuracy requirements of the launch vehicle with a fast convergence speed of 84 steps, and the decision time is only 2.5 ms. Additionally, it has the ability of online autonomous decision making as deployed on the embedded platform.},
+DOI = {10.3390/math11204276}
+}
+@misc{jiang2024rocketlandingcontrolrandom,
+      title={Rocket Landing Control with Random Annealing Jump Start Reinforcement Learning}, 
+      author={Yuxuan Jiang and Yujie Yang and Zhiqian Lan and Guojian Zhan and Shengbo Eben Li and Qi Sun and Jian Ma and Tianwen Yu and Changwu Zhang},
+      year={2024},
+      eprint={2407.15083},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2407.15083}, 
+}
 @article{Klumpp1974,
 title = {Apollo lunar descent guidance},
 journal = {Automatica},
@@ -235,6 +267,13 @@ abstract = {Rocket reusability dates as long as rockets. Since the beginning of 
   year         = {2023},
   howpublished = {\url{https://stanford.edu/class/ee364a}},
   note         = {Stanford University course materials. Accessed: 2024-12-18}
+}
+@book{boyd2004convex,
+  author    = {Stephen Boyd and Lieven Vandenberghe},
+  title     = {Convex Optimization},
+  publisher = {Cambridge University Press},
+  address   = {Cambridge, U.K.},
+  year      = {2004}
 }
 @ARTICLE{Gaudet2014,
   author={Gaudet, Brian and Furfaro, Roberto},
