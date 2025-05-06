@@ -97,6 +97,11 @@
     long: "Successive Convexification",
   ),
   (
+    key: "lc",
+    short: "LCvx",
+    long: "Lossless Convexification",
+  ),
+  (
     key: "ipm",
     short: "IPM",
     long: "Interior Point Method",
@@ -140,6 +145,11 @@
     key: "mpc",
     short: "MPC",
     long: "Model Predictive Control",
+  ),
+  (
+    key: "rtls",
+    short: "RTLS",
+    long: "Return to Launch Site",
   ),
 )
 
