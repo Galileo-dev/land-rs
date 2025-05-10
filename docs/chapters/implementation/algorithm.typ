@@ -221,11 +221,11 @@ Assume $k in [0, k_f]$ unless otherwise specified.
 
 == Code Implementation
 
-Rust is well equipped to handle convex optimisation tasks; a very prominent library, *Clarabel*, is written entirely in pure Rust; this is also used as the default solver for *CVXPY*, a well-regarded Python library for modelling and solving convex optimisation problems.
+Rust is well equipped to handle convex optimisation tasks; a very prominent library, *Clarabel*, is written entirely in pure Rust; this is also used as the default solver for *CVXPY* (the most popular Python library for modelling and solving convex optimisation problems).
 
 === Patching
 
-Clarabel does not offer a modelling language and, as such, requires much reformulation of the problem to fit the specification of the solver. Instead, a patch was applied to a linear programming library, which offers a variety of ways to model and solve linear programming problems; however, it lacked the support for the second-order cone constraint required by the above algorithm @Szmuk2016.
+Clarabel does not offer a modelling language and, as such, requires much reformulation of the problem to fit the specification of the solver. A bespoke patch was devleoped and applied to a linear programming library called good_lp, which offers a variety of ways to model and solve linear programming problems; however, it lacked the support for the second-order cone constraint required by the above algorithm @Szmuk2016.
 
 `patch-crate` was used to patch the `good_lp` @good_lp_patch crate to add support for the second-order cone constraints.
 The general form of the problem is as follows:
@@ -241,7 +241,7 @@ where:
 - $A x = b$ represents the equality constraints (i.e. vehicle dynamics, fuel mass depletion, glide slope constraints, thrust constraints).
 - $K$ represents @soc:pl cone constraints that enforce the thrust direction, minimum glide slope, acceleration limits.
 
-The @soc are defined as:
+The @soc:pl are defined as:
 $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
 == Results

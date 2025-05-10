@@ -38,7 +38,7 @@ Even though the algorithm could not handle atmospheric drag through real-time fe
 === Summary
 Convex optimisation methods like @gfold currently represent the state-of-the-art model-based trajectory optimisation for @apdg.
 
-It is also believed that this algorithm is similar in principle to the algorithm used by Spacex to land their Falcon 9 1st stages, which has been able to prove the real-world effectiveness of booster landing and reuse. The upcoming Starship, which is designed to be fully reusable (land both first and second stages), is also assumed to use a similar convex optimisation algorithm.
+SpaceX are known to use convex optimisation to land their Falcon 9 boosters, which has been able to prove the real-world effectiveness of booster landing and reuse @blackmore2017. The upcoming Starship, which is designed to be fully reusable (land both first and second stages) will likely use a similar algorithm.
 
 Convex optimisation methods like @gfold are computationally efficient but require accurate models of the vehicle and their environment @G-FOLD2012.
 
