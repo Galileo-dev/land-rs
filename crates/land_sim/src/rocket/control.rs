@@ -10,6 +10,7 @@ pub struct RocketControlInput {
 
 #[derive(Debug, Clone, Copy)]
 pub enum RocketInputType {
+    // Incremental controls
     ThrustIncrease,
     ThrustDecrease,
     PitchUp,
@@ -18,6 +19,18 @@ pub enum RocketInputType {
     YawRight,
     RollLeft,
     RollRight,
+
+    /// Absolute thrust in Newtons
+    SetThrust(f32),
+
+    /// Pitch ratio [-1, 1]
+    SetPitch(f32),
+
+    /// Yaw ratio [-1, 1]
+    SetYaw(f32),
+
+    /// Roll ratio [-1, 1]
+    SetRoll(f32),
 }
 #[derive(Component, Default, PartialEq, Debug, Reflect, Clone)]
 pub struct EngineSettings {
@@ -100,7 +113,7 @@ pub fn keyboard_input_system(
 }
 
 /// Process the keyboard input and update the rocket's control settings.
-pub fn map_keyboard_input_to_control_system(
+pub fn map_input_to_control_system(
     mut events: EventReader<RocketControlInput>,
     mut query: Query<(&mut EngineControlState, &EngineSettings)>,
 ) {
@@ -118,16 +131,10 @@ pub fn map_keyboard_input_to_control_system(
 
             match event.input_type {
                 RocketInputType::ThrustIncrease => {
-                    control.thrust = settings
-                        .delta_angle
-                        .mul_add(delta_thrust, control.thrust)
-                        .min(max_thrust);
+                    control.thrust = (control.thrust + delta_thrust).min(max_thrust);
                 }
                 RocketInputType::ThrustDecrease => {
-                    control.thrust = settings
-                        .delta_angle
-                        .mul_add(-delta_thrust, control.thrust)
-                        .max(0.0);
+                    control.thrust = (control.thrust - delta_thrust).max(0.0);
                 }
                 RocketInputType::PitchUp => {
                     control.pitch = (control.pitch + delta_angle).min(max_angle);
@@ -147,6 +154,10 @@ pub fn map_keyboard_input_to_control_system(
                 RocketInputType::RollRight => {
                     control.roll = (control.roll - delta_angle).max(-max_angle);
                 }
+                RocketInputType::SetThrust(t) => control.thrust = t.clamp(0.0, max_thrust),
+                RocketInputType::SetPitch(r) => control.pitch = r.clamp(-1.0, 1.0) * max_angle,
+                RocketInputType::SetYaw(r) => control.yaw = r.clamp(-1.0, 1.0) * max_angle,
+                RocketInputType::SetRoll(r) => control.roll = r.clamp(-1.0, 1.0) * max_angle,
             }
         }
     }
@@ -231,7 +242,7 @@ impl Plugin for RocketControlPlugin {
             Update,
             (
                 keyboard_input_system,
-                map_keyboard_input_to_control_system,
+                map_input_to_control_system,
                 update_motor_system,
                 apply_thrust_system,
                 debug_thrust_system,

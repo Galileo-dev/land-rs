@@ -57,7 +57,7 @@ fn main() {
             crate::gestures::plugin,
             crate::rocket::plugin,
             crate::utils::diagnostics::plugin,
-            // crate::guidance::plugin,
+            crate::guidance::plugin,
         ))
         .add_systems(Startup, (setup_camera, setup_physics))
         .run();

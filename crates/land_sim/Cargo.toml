@@ -35,6 +35,8 @@ strip = "debuginfo"
 wayland = ["bevy/wayland"]
 
 [dependencies]
+nalgebra = { workspace = true }
+
 thiserror = { workspace = true }
 bevy = { workspace = true }
 bevy_rapier3d = { workspace = true }
@@ -46,6 +48,5 @@ log = { version = "*", features = [
 iyes_perf_ui = { workspace = true }
 bon = { workspace = true }
 gfold-rs = { workspace = true }
-
 [dev-dependencies]
 anyhow = { workspace = true }

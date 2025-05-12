@@ -82,7 +82,7 @@ impl RocketSettings {
                 RocketBody,
                 RigidBody::Dynamic,
                 initial_transform,
-                // initial_velocity,
+                initial_velocity,
                 Collider::cylinder(body_height / 2.0, body_radius),
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
