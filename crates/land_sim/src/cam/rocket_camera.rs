@@ -18,5 +18,5 @@ pub fn follow_rocket_system(
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (follow_rocket_system, follow_rocket_system));
+    app.add_systems(Update, (follow_rocket_system));
 }
