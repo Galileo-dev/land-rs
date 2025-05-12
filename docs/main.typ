@@ -210,14 +210,13 @@
   title: [List of Figures],
   target: figure.where(kind: image),
 )
-#pagebreak()
 
 // List of tables
 // #outline(
 //   title: [List of Tables],
 //   target: figure.where(kind: table),
 // )
-// #pagebreak()
+#pagebreak()
 
 // Abbreviations
 #abbreviations-page(abbreviations)
@@ -233,6 +232,9 @@
 #pagebreak()
 
 #include "./chapters/technology_stack.typ"
+#pagebreak()
+
+#include "./chapters/convex_optimisation.typ"
 #pagebreak()
 
 #include "./chapters/implementation/index.typ"
