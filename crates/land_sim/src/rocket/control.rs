@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+use super::object::{RocketBody, RocketEngine};
+
 #[derive(Event)]
 pub struct RocketControlInput {
     pub entity: Entity,
@@ -174,20 +176,30 @@ fn update_motor_system(
 }
 
 pub fn apply_thrust_system(
-    mut nozzles: Query<(
-        &GlobalTransform,
-        &EngineControlState,
-        &EngineSettings,
-        &mut ExternalForce,
-    )>,
+    nozzles: Query<
+        (
+            &GlobalTransform,
+            &EngineControlState,
+            &EngineSettings,
+            &ImpulseJoint, // to reach the parent body
+        ),
+        With<RocketEngine>,
+    >,
+    mut bodies: Query<(&GlobalTransform, &mut ExternalForce), With<RocketBody>>,
 ) {
-    for (global_transform, control, settings, mut external_force) in nozzles.iter_mut() {
-        let thrust = settings.max_thrust * control.thrust / settings.max_thrust;
+    for (nozzle_tf, control, settings, joint) in nozzles.iter() {
+        let thrust = control.thrust.clamp(0.0, settings.max_thrust);
 
-        let world_transform = global_transform.compute_transform();
-        let thrust_direction = world_transform.rotation * Vec3::Y;
+        let dir = nozzle_tf.compute_transform().rotation * Vec3::Y;
+        let force = dir * thrust;
 
-        external_force.force = thrust_direction * thrust;
+        if let Ok((body_tf, mut body_force)) = bodies.get_mut(joint.parent) {
+            let r = nozzle_tf.translation() - body_tf.translation();
+            let torque = r.cross(force);
+
+            body_force.force = force;
+            body_force.torque = torque;
+        }
     }
 }
 

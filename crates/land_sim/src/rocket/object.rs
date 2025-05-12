@@ -86,6 +86,7 @@ impl RocketSettings {
                 Collider::cylinder(body_height / 2.0, body_radius),
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
+                ExternalForce::default(),
             ))
             .id();
 
@@ -107,21 +108,15 @@ impl RocketSettings {
                     motor_stiffness: engine_motor_stiffness,
                     motor_damping: engine_motor_damping,
                     delta_angle: 1.0,
-                    delta_thrust: 10.0,
+                    delta_thrust: 10_000.0,
                 },
                 Name::new(format!("{name} Engine")),
                 engine_transform,
                 RigidBody::Dynamic,
                 Collider::cone(engine_height / 2.0, engine_radius),
-                ColliderMassProperties::Mass(body_dry_mass),
-                AdditionalMassProperties::Mass(engine_mass),
-                // Engine needs to be able to apply forces to the rocket body.
-                ExternalForce::default(),
+                ColliderMassProperties::Mass(engine_mass),
             ))
             .id();
-
-        // tidy up scene hierarchy.
-        commands.entity(body_id).add_child(engine_id);
 
         // ----- Spawn engine nozzle -----
         // We initially spawn the engine nozzle just below the rocket body
@@ -156,6 +151,9 @@ impl RocketSettings {
             .entity(engine_id)
             .insert(ImpulseJoint::new(body_id, joint));
 
+        // tidy up scene hierarchy.
+        // commands.entity(body_id).add_child(engine_id);
+
         body_id
     }
 }
@@ -175,8 +173,8 @@ pub fn spawn_rocket(mut commands: Commands) {
         .engine_mass(1.0)
         .engine_degrees_of_freedom(15.0)
         .engine_max_thrust(250_000.0)
-        .engine_motor_max_force(150_000.0)
-        .engine_motor_stiffness(100_000.0)
+        .engine_motor_max_force(550_000.0)
+        .engine_motor_stiffness(500_000.0)
         .engine_motor_damping(20_000.0)
         .build()
         .spawn(&mut commands);
