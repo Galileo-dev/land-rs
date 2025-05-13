@@ -1,4 +1,6 @@
 = Problem Analysis
+Here we will break down @apdg into its core challenges: highly non-linear dynamics (e.g. gravity, drag thrust limits), free-final-time optimisation, glide-slope and targeting constraints, and the minimal margin for error due to the irreversible nature of rocket landings. We also investigate environmental factors such as wind, communication blackouts, reentry heating and hardware limitations such as a minimum thrust.
+
 The problem is a rocket plummeting through the atmosphere and landing on a specific target. We can only use the rocket's throttleable rocket engine to declerate and manoeuvre the rocket to a specific landing target and speed. During descent, the rocket is subject to several non-linear constraints such as aerodynamic drag, finite fuel and an unspecified flight time @Szmuk2016.
 
 
@@ -24,7 +26,11 @@ As the introduction mentions, the trajectory generation problem is almost always
 - *Sequential convex programming (Successive Convexification)*: involves an iterative process of linearising the non-convex elements about a point obtained from the previous solution. This iteration process stops once a user-defined convergence criterion is met @Szmuk2016.
 
 == Small Margin for Error
-The first landing attempt must succeed; failure means vehicle destruction on impact. Carrying extra fuel for a second attempt is primarily infeasible. Large rocket engines struggle to throttle down to hover and require continuous propellant to maintain altitude. Most large rockets do not have a low enough minimum throttle, so, during landing, the rocket will have a @twr above zero. When the velocity reaches zero, the rocket will start moving back up @blackmore2017.
+The first landing attempt must succeed; failure means vehicle destruction on impact. Carrying extra fuel for a second attempt is primarily infeasible. Large rocket engines struggle to throttle down to hover and require continuous propellant to maintain altitude. Most large rockets do not have a low enough minimum throttle, so, during landing, the rocket will have a @twr above zero. The rocket will start moving back up @blackmore2017 when the velocity reaches zero.
 
 == Hardware Limits
 A successful guidance system must compute divert trajectories without exceeding hardware capabilities or safety constraints. Large rocket engines have thrust constraints preventing hovering, requiring continuous descent to minimise propellant usage @blackmore2017.
+
+== Conclusion
+
+This analysis clarified the requirements for a landing algorithm for real-world applications: adaptability and robustness to disturbances, generating dynamically feasible trajectories under non-convex constraints, and converging rapidly on board.

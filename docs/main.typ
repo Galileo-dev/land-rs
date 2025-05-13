@@ -234,7 +234,7 @@
 #include "./chapters/technology_stack.typ"
 #pagebreak()
 
-#include "./chapters/convex_optimisation.typ"
+#include "./chapters/background.typ"
 #pagebreak()
 
 #include "./chapters/implementation/index.typ"

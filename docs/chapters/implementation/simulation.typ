@@ -1,4 +1,4 @@
-= simulation
+= Simulation
 
 == Introduction
 
@@ -31,3 +31,7 @@ The simulation is made up of a few key components:
 
 === Main Rocket Simulation Module
 #include "../../code/rocket.typ"
+
+== Conclusion
+
+Developing a custom simulation environment provides a real-time testbed for @sc and @drl methods, modelling vehicle dynamics and environmental disturbances, enabling repeatable and robust tests.

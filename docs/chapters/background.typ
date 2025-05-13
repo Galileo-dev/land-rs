@@ -1,9 +1,10 @@
 #import "@preview/equate:0.3.1": equate
 #import "@preview/showybox:2.0.4": showybox
 
-= Convex Optimisation
+= Background
+This chapter will provide the reader with a fundamental understanding of convex optimisation. While there are whole books on this subject, such as @boyd2004convex, we will primarily focus on basic concepts and explain the need for @sc and @lc in this project. We will provide definitions of convex sets and functions, the components and formulation of a convex problem, and the crucial properties of convexity that make it appealing to our use case.
 
-== Background
+== Convex Optimisation
 
 Convex optimisation aims to minimise a convex objective function over a set of convex constraints. The expressiveness of this technique allows it to handle a wide range of control problems, and has some very appealing properties @boyd2004convex:
 - The local solution is also the global solution.
@@ -31,7 +32,7 @@ This section will explore and provide a surface-level understanding of convex op
 
     #figure(
       image("../assets/convex_set.png", width: 80%),
-      caption: [*Convex set example.*],
+      caption: [*Convex set example. Source: @Malyuta2022*],
     ) <convex_set>
   ],
 )
@@ -49,7 +50,7 @@ This section will explore and provide a surface-level understanding of convex op
 
     #figure(
       image("../assets/convex_function.png", width: 80%),
-      caption: [*Convex function example.*],
+      caption: [*Convex function example. Source: @Malyuta2022*],
     ) <convex_function>
   ],
 )
@@ -66,3 +67,6 @@ This section will explore and provide a surface-level understanding of convex op
     where $f_0: RR^n -> RR$ is a convex cost function, $f_i: RR^n -> RR$ are convex inequality constraints, and $g_i: RR^n -> RR$ are convex equality constraints.
   ],
 )
+
+== Conclusion
+While we have distilled the convex-optimisation fundamentals, we have equipped the reader with enough basic understanding to understand and appreciate the reasons why convex optimisation is so robust. While we only apply it to trajectory optimisation, it has many other applications that make it very appealing for safety-critical systems.

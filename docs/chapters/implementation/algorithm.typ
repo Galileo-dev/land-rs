@@ -58,7 +58,7 @@ and Non-Convex Constraints* @Szmuk2016, which formulates @apdg as a successive c
 - Uses an iterative process by which the problem is repeatedly linearised about a solution obtained from the previous iteration.
 - Solve the convexified sub-problems using an @ipm solver.
 
-== problem Formulation
+== Problem formulation
 This section formulates the @apdg problem in the @sc style and explains the process of turning these into constraints that Clarabel can solve.
 
 @apdg is a continuous-time optimal control problem, with the objective to minimise fuel consumption (maximise the final mass) subject to various vehicle dynamics (3-DOF translational motion, thrust, gravity, drag and point mass), state boundary conditions, and control constraints (glide-slope, minimum/maximum thrust). @Szmuk2016
@@ -230,6 +230,8 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
 == Results
 
+The @sc algorithm was run using a bespoke Rust implementation with a modified modelling library to define constraints and variables. The Following figures show the optimisation process results, which gave us a feasible trajectory.
+
 #figure(
   image("../../assets/trajectory_chart.png", width: 80%),
   caption: [*Three-dimensional trajectory produced by the last successive convexification iteration.* The dots along the
@@ -247,10 +249,8 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
 
 #figure(
   image("../../assets/thrust_mass_chart.png", width: 80%),
-  caption: [*Thrust profile of the converged trajectory.* In the top left plot, the vehicle's vacuum thrust profile is shown, along
-    with the variable Γ, and the minimum and maximum thrust constraints. In the top right plot, the thrust magnitude rate is shown
-    along with its minimum and maximum bounds. The bottom left plot shows the tilt angle of the commanded thrust vector, as well
-    as the 15° maximum tilt limit. Lastly, the bottom right plot shows the azimuth of the thrust vector.],
+  caption: [*Thrust profile of the converged trajectory.* the vehicle's vacuum thrust profile and the variables Γ and minimum and maximum thrust constraints are shown in the top left plot. In the top right plot, the thrust magnitude rate is shown
+    along with its minimum and maximum bounds. The bottom left plot shows the commanded thrust vector's tilt angle and the 15° maximum tilt limit. Lastly, the bottom right plot shows the azimuth of the thrust vector.],
 ) <thrust_mass_chart>
 
 #figure(
@@ -269,6 +269,7 @@ $ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
   caption: [*Iteration history of the SC relaxation term.* The figure shows the maximum value of $||a_R||$ over all $k in [0, k_f]$ for each SC iteration.],
 ) <relaxation_convergence_chart>
 
+== Conclusion
 
-
+The results of the @sc Formulation show that the algorithm can guarantee convergence to a feasible solution while satisfying various safety constraints. This provides a baseline against which to compare @drl methods.
 

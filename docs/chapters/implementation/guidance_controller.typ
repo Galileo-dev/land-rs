@@ -18,4 +18,6 @@ Once we have a suitable trajectory, we must implement a controller to follow thi
 
 #include "../../code/guidance_controller_diagram.typ"
 
+=== Conclusion
+Using a convex optimised trajectory with a guidance control loop, we ensure that the physical vehicle follows the computed trajectory with minimal deviations, robustly and safely, filling in the gap between a theoretically optimal trajectory and actual hardware action.
 
