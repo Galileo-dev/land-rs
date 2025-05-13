@@ -168,8 +168,8 @@ fn update_motor_system(
 ) {
     for (control, settings, mut joint) in query.iter_mut() {
         let max_angle = settings.degrees_of_freedom.to_radians();
-        let pitch = (control.pitch * max_angle).clamp(-max_angle, max_angle);
-        let yaw = (control.yaw * max_angle).clamp(-max_angle, max_angle);
+        let pitch = (control.pitch).clamp(-max_angle, max_angle);
+        let yaw = (control.yaw).clamp(-max_angle, max_angle);
 
         joint.data.as_mut().set_motor_position(
             JointAxis::AngX,
@@ -187,30 +187,22 @@ fn update_motor_system(
 }
 
 pub fn apply_thrust_system(
-    nozzles: Query<
+    mut nozzles: Query<
         (
             &GlobalTransform,
             &EngineControlState,
             &EngineSettings,
-            &ImpulseJoint, // to reach the parent body
+            &mut ExternalForce,
         ),
         With<RocketEngine>,
     >,
-    mut bodies: Query<(&GlobalTransform, &mut ExternalForce), With<RocketBody>>,
 ) {
-    for (nozzle_tf, control, settings, joint) in nozzles.iter() {
-        let thrust = control.thrust.clamp(0.0, settings.max_thrust);
+    for (nozzle_tf, control, settings, mut ext_force) in &mut nozzles {
+        let thrust_mag = control.thrust.clamp(0.0, settings.max_thrust);
 
-        let dir = nozzle_tf.compute_transform().rotation * Vec3::Y;
-        let force = dir * thrust;
+        let thrust_dir = nozzle_tf.compute_transform().rotation * Vec3::Y;
 
-        if let Ok((body_tf, mut body_force)) = bodies.get_mut(joint.parent) {
-            let r = nozzle_tf.translation() - body_tf.translation();
-            let torque = r.cross(force);
-
-            body_force.force = force;
-            body_force.torque = torque;
-        }
+        ext_force.force = thrust_dir * thrust_mag;
     }
 }
 

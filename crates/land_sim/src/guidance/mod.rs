@@ -15,9 +15,9 @@ pub fn plugin(app: &mut App) {
         Update,
         (
             generate_trajectory.run_if(|traj: Option<Res<Trajectory>>| traj.is_none()),
-            follow_trajectory
-                .run_if(resource_exists::<Trajectory>)
-                .after(generate_trajectory),
+            // follow_trajectory
+            //     .run_if(resource_exists::<Trajectory>)
+            //     .after(generate_trajectory),
             draw_trajectory.run_if(resource_exists::<Trajectory>),
         ),
     );
@@ -28,7 +28,6 @@ fn generate_trajectory(
     rocket_q: Query<(&Transform, &Velocity, &RocketConfig), With<rocket::RocketRoot>>,
 ) {
     let Ok((transform, vel, rocket_cfg_component)) = rocket_q.get_single() else {
-        warn!("generate_trajectory(): rocket not yet spawned or missing RocketConfig – will retry next frame");
         return;
     };
 

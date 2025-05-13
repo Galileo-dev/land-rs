@@ -10,6 +10,7 @@ enum MetricKind {
     Fuel,
     Thrust,
     Tilt,
+    Drag,
 }
 
 pub fn plugin(app: &mut App) {
@@ -40,6 +41,7 @@ fn setup_hud(mut commands: Commands, assets: Res<AssetServer>) {
             add_line(root, &font_bold, &font_mono, MetricKind::Fuel, "Fuel:");
             add_line(root, &font_bold, &font_mono, MetricKind::Thrust, "Thrust:");
             add_line(root, &font_bold, &font_mono, MetricKind::Tilt, "Tilt:");
+            add_line(root, &font_bold, &font_mono, MetricKind::Drag, "Drag:");
         });
 }
 
@@ -89,13 +91,14 @@ fn update_hud(
             &Velocity,
             &AdditionalMassProperties,
             &rocket::RocketConfig,
+            Option<&rocket::DragForce>,
         ),
         With<rocket::RocketBody>,
     >,
     engine_q: Query<&rocket::EngineControlState, With<rocket::RocketEngine>>,
     mut spans: Query<(&mut Text, &MetricKind)>,
 ) {
-    let Ok((tf, vel, extra_mass, cfg)) = rocket_q.get_single() else {
+    let Ok((tf, vel, extra_mass, cfg, drag_force)) = rocket_q.get_single() else {
         return;
     };
 
@@ -110,6 +113,9 @@ fn update_hud(
     let thrust: f32 = engine_q.iter().map(|e| e.thrust).sum();
     let tilt = tf.up().angle_between(Vec3::Y).to_degrees();
 
+    let drag_force = drag_force.map(|d| d.0).unwrap_or(Vec3::ZERO);
+    let drag_decel = drag_force.length() / total_mass;
+
     for (mut text, kind) in &mut spans {
         text.0 = match kind {
             MetricKind::Altitude => format!("{altitude:>7.0} m"),
@@ -118,6 +124,7 @@ fn update_hud(
             MetricKind::Fuel => format!("{fuel_mass:>6.0} kg"),
             MetricKind::Thrust => format!("{thrust:>6.0} N"),
             MetricKind::Tilt => format!("{tilt:>5.1} degs"),
+            MetricKind::Drag => format!("{drag_decel:>6.2} m/s²"),
         };
     }
 }

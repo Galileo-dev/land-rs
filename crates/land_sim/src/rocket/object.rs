@@ -120,8 +120,8 @@ impl RocketSettings {
                 Collider::cylinder(body_height / 2.0, body_radius),
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
-                ExternalForce::default(),
                 rocket_config_component, // Add RocketConfig as a component
+                ExternalForce::default(),
             ))
             .id();
 
@@ -150,6 +150,7 @@ impl RocketSettings {
                 RigidBody::Dynamic,
                 Collider::cone(engine_height / 2.0, engine_radius),
                 ColliderMassProperties::Mass(engine_mass),
+                ExternalForce::default(),
             ))
             .id();
 
