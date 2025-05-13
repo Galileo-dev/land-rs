@@ -5,6 +5,7 @@ pub mod error;
 pub mod event_mapper;
 pub mod gestures;
 pub mod guidance;
+pub mod metrics;
 pub mod prelude;
 pub mod rocket;
 pub mod utils;
@@ -58,6 +59,7 @@ fn main() {
             crate::rocket::plugin,
             crate::utils::diagnostics::plugin,
             crate::guidance::plugin,
+            crate::metrics::plugin,
         ))
         .add_systems(Startup, (setup_camera, setup_physics))
         .run();

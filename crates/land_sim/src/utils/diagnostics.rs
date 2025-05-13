@@ -16,7 +16,7 @@ pub fn plugin(app: &mut App) {
             PerfUiPlugin,
             // bevy_inspector_egui
             WorldInspectorPlugin::new(),
-            FilterQueryInspectorPlugin::<With<rocket::EngineControlState>>::default(),
+            FilterQueryInspectorPlugin::<With<rocket::RocketRoot>>::default(),
         ))
         .add_systems(Startup, setup);
 }

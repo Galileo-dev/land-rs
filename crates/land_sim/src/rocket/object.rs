@@ -1,6 +1,10 @@
 use bon::*;
+use gfold_rs::rocket_config::RocketConfig as GfoldRocketConfig; // Alias for clarity
 
 use crate::prelude::*;
+
+#[derive(Component, Debug, Clone)] // Changed from Resource to Component, added Reflect
+pub struct RocketConfig(pub GfoldRocketConfig);
 
 #[derive(Component, Default, Debug, Reflect)]
 #[require(Name, RocketBody)]
@@ -39,6 +43,14 @@ pub struct RocketSettings {
     pub engine_motor_stiffness: Real,
     pub engine_motor_damping: Real,
 
+    pub specific_impulse: Real,
+    pub nozzle_area: Real,
+    pub min_vacuum_thrust: Real,
+    pub min_thrust_rate: Real,
+    pub max_thrust_rate: Real,
+    pub drag_s_d: Real,
+    pub drag_c_d: Real,
+
     // Physics
     #[builder(default = false)]
     pub ignore_internal_collisions: bool,
@@ -67,12 +79,34 @@ impl RocketSettings {
             engine_motor_max_force,
             engine_motor_stiffness,
             engine_motor_damping,
+            specific_impulse,
+            nozzle_area,
+            min_vacuum_thrust,
+            min_thrust_rate,
+            max_thrust_rate,
+            drag_s_d,
+            drag_c_d,
             ignore_internal_collisions,
             enable_ccd,
             disable_sleeping,
         } = self;
 
         initial_transform.translation.y += engine_height + body_height / 2.0;
+
+        let gfold_config_data = GfoldRocketConfig {
+            m_dry: body_dry_mass.into(),
+            m_fuel: body_fuel_mass.into(),
+            i_sp: specific_impulse.into(),
+            a_nozzle: nozzle_area.into(),
+            t_min_vac: min_vacuum_thrust.into(),
+            t_max_vac: engine_max_thrust.into(),
+            tdot_min: min_thrust_rate.into(),
+            tdot_max: max_thrust_rate.into(),
+            theta_max: engine_degrees_of_freedom.into(),
+            s_d: drag_s_d.into(),
+            c_d: drag_c_d.into(),
+        };
+        let rocket_config_component = RocketConfig(gfold_config_data);
 
         // Body
         let body_id = commands
@@ -87,6 +121,7 @@ impl RocketSettings {
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
                 ExternalForce::default(),
+                rocket_config_component, // Add RocketConfig as a component
             ))
             .id();
 
@@ -176,6 +211,13 @@ pub fn spawn_rocket(mut commands: Commands) {
         .engine_motor_max_force(550_000.0)
         .engine_motor_stiffness(500_000.0)
         .engine_motor_damping(20_000.0)
+        .specific_impulse(300.0)
+        .nozzle_area(0.5)
+        .min_vacuum_thrust(100_000.0)
+        .min_thrust_rate(-100_000.0)
+        .max_thrust_rate(100_000.0)
+        .drag_s_d(10.0)
+        .drag_c_d(1.0)
         .build()
         .spawn(&mut commands);
 }
