@@ -24,7 +24,7 @@ To run this project, you need to have the following dependencies installed:
 
 To apply the patch to the good_lp crate:
 ```bash 
-cargo patch-crate good_lp
+cargo patch-crate
 ```
 
 
