@@ -1,9 +1,9 @@
 use bon::*;
-use gfold_rs::rocket_config::RocketConfig as GfoldRocketConfig; // Alias for clarity
+use gfold_rs::rocket_config::RocketConfig as GfoldRocketConfig;
 
 use crate::prelude::*;
 
-#[derive(Component, Debug, Clone)] // Changed from Resource to Component, added Reflect
+#[derive(Component, Debug, Clone)]
 pub struct RocketConfig(pub GfoldRocketConfig);
 
 #[derive(Component, Default, Debug, Reflect)]
@@ -120,7 +120,7 @@ impl RocketSettings {
                 Collider::cylinder(body_height / 2.0, body_radius),
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
-                rocket_config_component, // Add RocketConfig as a component
+                rocket_config_component,
                 ExternalForce::default(),
             ))
             .id();

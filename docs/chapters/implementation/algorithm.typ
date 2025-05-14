@@ -16,7 +16,7 @@ The main objectives of an @apdg problem are multi-fold and involve trade-offs:
 + *Vertical landing:* For most landing scenarios, the lander must be in a near-vertical orientation during landing. We use a glide-slope constraint to ensure the vehicle stays within a predefined cone-shaped landing corridor. @glide_slope
 
 #figure(
-  image("../../assets/glide_slope.png", width: 80%),
+  image("../../assets/glide_slope.png", width: 100%),
   caption: [A planetary landing glideslope cone. Source: @Malyuta2022],
 ) <glide_slope>
 
@@ -202,72 +202,6 @@ Assume $k in [0, k_f]$ unless otherwise specified.
 ]
 
 #pagebreak()
-
-== Code Implementation
-
-Rust is well equipped to handle convex optimisation tasks; a very prominent library, *Clarabel*, is written entirely in pure Rust @Clarabel_2024; this is also used as the default solver for *CVXPY* (the most popular Python library for modelling and solving convex optimisation problems).
-
-=== Patching
-
-Clarabel does not offer a modelling language and, as such, requires much reformulation of the problem to fit the specification of the solver. A bespoke patch was developed and applied to a linear programming library called good_lp, which offers a variety of ways to model and solve linear programming problems; however, it lacked the support for the second-order cone constraint required by the above algorithm @Szmuk2016.
-
-`patch-crate` was used to patch the `good_lp` @good_lp_patch crate to add support for the second-order cone constraints.
-The general form of the problem is as follows:
-
-$ min c^T x $
-
-$ "Subject to" quad A x = b, quad x in K $
-
-Where:
-
-- $x$ is the decision variable (i.e position, velocity, mass and thrust).
-- $c^T x$ is the objective function
-- $A x = b$ represents the equality constraints (i.e. vehicle dynamics, fuel mass depletion, glide slope constraints, thrust constraints).
-- $K$ represents @soc:pl cone constraints that enforce the thrust direction, minimum glide slope, and acceleration limits.
-
-The @soc:pl are defined as:
-$ K^n_S = { v in R^n | v_1 ≥ || v_(2:n) || } $
-
-== Results
-
-The @sc algorithm was run using a bespoke Rust implementation with a modified modelling library to define constraints and variables. The Following figures show the optimisation process results, which gave us a feasible trajectory.
-
-#figure(
-  image("../../assets/trajectory_chart.png", width: 80%),
-  caption: [*Three-dimensional trajectory produced by the last successive convexification iteration.* The dots along the
-    trajectory indicate discretisation points, and the lines intersecting the trajectory at the discretisation points represent scaled com-
-    manded thrust vectors.],
-) <trajectory_chart>
-
-
-#figure(
-  image("../../assets/pos_vel_chart.png", width: 80%),
-  caption: [*Up, east, and north components of the positions and velocities.* This figure shows a componentwise representation
-    of the positions and velocities of the trajectory shown in Figure 1. The hop maneuver is evident in the up-position plot at the top
-    left],
-) <pos_vel_chart>
-
-#figure(
-  image("../../assets/thrust_mass_chart.png", width: 80%),
-  caption: [*Thrust profile of the converged trajectory.* the vehicle's vacuum thrust profile and the variables Γ and minimum and maximum thrust constraints are shown in the top left plot. In the top right plot, the thrust magnitude rate is shown
-    along with its minimum and maximum bounds. The bottom left plot shows the commanded thrust vector's tilt angle and the 15° maximum tilt limit. Lastly, the bottom right plot shows the azimuth of the thrust vector.],
-) <thrust_mass_chart>
-
-#figure(
-  image("../../assets/mass_chart.png", width: 80%),
-  caption: [*Vehicle mass as a function of time.* The dashed lines at the top and bottom of the figures represent the initial mass
-    and the dry mass of the vehicle, respectively.],
-) <mass_chart>
-
-#figure(
-  image("../../assets/convergence_chart.png", width: 80%),
-  caption: [*Iteration history of position, velocity, and thrust.* Each plot shows the quantity $log max_k delta x_i [k]$ at each SC iteration for which $i > 0$.],
-) <convergence_chart>
-
-#figure(
-  image("../../assets/relaxation_convergence_chart.png", width: 80%),
-  caption: [*Iteration history of the SC relaxation term.* The figure shows the maximum value of $||a_R||$ over all $k in [0, k_f]$ for each SC iteration.],
-) <relaxation_convergence_chart>
 
 == Conclusion
 

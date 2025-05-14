@@ -2,7 +2,7 @@
 #import "@preview/showybox:2.0.4": showybox
 
 = Background
-This chapter will provide the reader with a fundamental understanding of convex optimisation. While there are whole books on this subject, such as @boyd2004convex, we will primarily focus on basic concepts and explain the need for @sc and @lc in this project. We will provide definitions of convex sets and functions, the components and formulation of a convex problem, and the crucial properties of convexity that make it appealing to our use case.
+This chapter will provide the reader with a fundamental understanding of convex optimisation. While there are whole books on this subject, such as @boyd2004convex, we will primarily focus on basic concepts and explain the need for @sc and @lc in this project. We will define convex sets and functions, the components and formulation of a convex problem, and the crucial properties of convexity that make it appealing to our use case.
 
 == Convex Optimisation
 
@@ -18,11 +18,13 @@ This makes it safer than other techniques for autonomous rocket landing, where a
 == Convex Optimisation Fundamentals
 This section will explore and provide a surface-level understanding of convex optimisation, and is mainly based on teachings from @boyd2004convex and @Malyuta2022.
 
+A convex set is simply a set that contains all line segments connecting its points, as seen in @convex_set.
+
 #showybox(
   title: "Convex Set ",
   columns(2)[
 
-    A set $C$ is convex if and only contains the line segment that connects any two points in the set.
+    A set $C$ is convex if and only if it contains the line segment that connects any two points in the set.
 
     $ x, y in C => [x, y]_theta in C $
 
@@ -32,10 +34,12 @@ This section will explore and provide a surface-level understanding of convex op
 
     #figure(
       image("../assets/convex_set.png", width: 80%),
-      caption: [*Convex set example. Source: @Malyuta2022*],
+      caption: [*A Convex set example where $theta in [0, 1]$ generates a line segment between two points inside the convex set. Source: @Malyuta2022*],
     ) <convex_set>
   ],
 )
+
+A convex function is simply a function that lies below all line segments connecting its points, as seen in @convex_function.
 
 #showybox(
   title: "Convex Function ",
@@ -50,10 +54,12 @@ This section will explore and provide a surface-level understanding of convex op
 
     #figure(
       image("../assets/convex_function.png", width: 80%),
-      caption: [*Convex function example. Source: @Malyuta2022*],
+      caption: [*Convex function example showing the epigraph epi $f subset RR^n times RR$ is the set of points that lie above the function and itself define the convex set. Source: @Malyuta2022*],
     ) <convex_function>
   ],
 )
+
+A convex optimisation problem can be formulated with these definitions in the following form.
 
 #showybox(
   title: "Convex problem ",

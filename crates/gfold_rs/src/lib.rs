@@ -14,8 +14,6 @@ pub mod trajectories;
 
 pub mod plotting;
 
-pub mod guidance;
-
 pub mod state;
 
 pub mod rocket_config;

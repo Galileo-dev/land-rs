@@ -67,6 +67,11 @@
     long: "Second Order Cone Programming",
   ),
   (
+    key: "qp",
+    short: "QP",
+    long: "Quadratic Programming",
+  ),
+  (
     key: "soc",
     short: "SOC",
     long: "Second Order Cone",
@@ -80,6 +85,11 @@
     key: "6dof",
     short: "6DOF",
     long: "Six Degrees of Freedom",
+  ),
+  (
+    key: "3dof",
+    short: "3DOF",
+    long: "Three Degrees of Freedom",
   ),
   (
     key: "lp",
@@ -151,6 +161,21 @@
     short: "RTLS",
     long: "Return to Launch Site",
   ),
+  (
+    key: "ddpg",
+    short: "DDPG",
+    long: "Deep Deterministic Policy Gradient",
+  ),
+  (
+    key: "td3",
+    short: "TD3",
+    long: "Twin Delayed DDPG",
+  ),
+  (
+    key: "sd3",
+    short: "SD3",
+    long: "Softmax Double DDPG",
+  ),
 )
 
 
@@ -160,17 +185,9 @@
 #codly(zebra-fill: none, languages: codly-languages)
 
 
-#set text(font: "Times New Roman", size: 11pt, fill: rgb(51, 51, 51))
+#set text(font: "Times New Roman", size: 12pt, fill: rgb(51, 51, 51))
 #show raw: set text(font: "Monaspace Argon", size: 10pt, fill: rgb(80, 80, 80))
 #set par(leading: 0.7em)
-
-// Table styling
-#show table: table => {
-  clean-table(
-    table.headers,
-    ..table.rows,
-  )
-}
 
 // Define bibliography
 #let bibliography = bibliography("references.bib", style: "ieee", title: "References")
@@ -247,10 +264,6 @@
 #pagebreak()
 
 #include "./chapters/conclusion.typ"
-#pagebreak()
-
-#include "./chapters/future_work.typ"
-
 
 #bibliography
 
