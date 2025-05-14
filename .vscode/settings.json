@@ -1,6 +1,9 @@
 {
   "[typst]": {
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+     "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 80,
+    "editor.rulers": [80]
   },
   "tinymist.formatterMode": "typstyle",
   "generic-lsp.configuration": [
@@ -25,5 +28,6 @@
   "rust-analyzer.linkedProjects": [
     "./Cargo.toml",
     "./target/patch/good_lp-1.13.0/Cargo.toml"
-  ]
+  ],
+  "harper.dialect": "British",
 }

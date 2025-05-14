@@ -1,13 +1,23 @@
+
+
 = Appendices
 
-== Appendix A: Mathematical Derivations
+#set heading(numbering: "A.1", supplement: [Appendix])
 
-[Detailed mathematical derivations that are too lengthy for the main text]
+#counter(heading).update(1)
 
-== Appendix B: Additional Results
+== Patch `land-rs/patches/good_lp+1.13.0.patch` <good_lp_patch>
+#include "../code/good_lp.typ"
 
-[Any additional results that support your findings but aren't central to the main narrative]
+== ZEM/ZEV Python Sample <zemzev_sample_code>
+#include "../code/zemzev_hoverslam.typ"
 
-== Appendix C: Code Samples
+== Rocket Engine Code <rocket-engine-code>
+#include "../code/rocket/engine.typ"
 
-[Key portions of your implementation with explanations]
+== Rocket Body Code <rocket-body-code>
+#include "../code/rocket/body.typ"
+
+== Rocket Engine Joint Code <rocket-engine-joint-code>
+#include "../code/rocket/joint.typ"
+

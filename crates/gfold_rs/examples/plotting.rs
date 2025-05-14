@@ -15,12 +15,11 @@ fn main() {
 
     plot_position_velocity_time("pos_vel_chart.png", &sol).unwrap();
 
-    plot_thrust_mass_time(
-        "thrust_mass_chart.png",
-        &sol,
-        settings.simulation_settings(),
-    )
-    .unwrap();
+    plot_thrust_time("thrust_chart.png", &sol, settings.simulation_settings()).unwrap();
+
+    plot_mass_time("mass_chart.png", &sol, settings.simulation_settings()).unwrap();
 
     plot_convergence("convergence_chart.png", &hist).unwrap();
+
+    plot_relaxation_convergence("relaxation_convergence_chart.png", &hist).unwrap();
 }

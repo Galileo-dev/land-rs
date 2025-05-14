@@ -4,6 +4,8 @@ pub mod cam;
 pub mod error;
 pub mod event_mapper;
 pub mod gestures;
+pub mod guidance;
+pub mod metrics;
 pub mod prelude;
 pub mod rocket;
 pub mod utils;
@@ -56,13 +58,15 @@ fn main() {
             crate::gestures::plugin,
             crate::rocket::plugin,
             crate::utils::diagnostics::plugin,
+            crate::guidance::plugin,
+            crate::metrics::plugin,
         ))
         .add_systems(Startup, (setup_camera, setup_physics))
         .run();
 }
 
 fn setup_camera(mut commands: Commands) {
-    let translation = Vec3::new(-2.0, 2.5, 5.0);
+    let translation = Vec3::new(0.0, 0.0, 100.0);
     let radius = translation.length();
 
     commands.spawn((
@@ -89,6 +93,6 @@ fn setup_physics(mut commands: Commands) {
         .insert(Transform::from_xyz(0.0, 0.0, 0.0));
     /* Create a landing pad. */
     commands
-        .spawn(Collider::cylinder(0.05, 5.0))
+        .spawn(Collider::cylinder(0.05, 20.0))
         .insert(Transform::from_xyz(0.0, 0.05, 0.0));
 }

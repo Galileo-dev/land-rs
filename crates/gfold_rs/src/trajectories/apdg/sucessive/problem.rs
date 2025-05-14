@@ -413,10 +413,14 @@ fn add_linearised_dynamics_constraints(
                 vars.steps[k + 1].v[i] == vars.steps[k].v[i] + fv_taylor_expr
             ));
         }
+    }
 
+    for k in 0..N {
         // Acceleration dynamics
         // a[k] = (1 / m[k]) * (T[k] + D[k]) + a_R[k] + g
         // D[k] = drag_const * ||v[k]|| * v[k]
+
+        let prev_step_k = &prev_trajectory.steps[k];
         for i in 0..3 {
             let fa_func = |psi_vec: &DVector<F64>| -> F64 {
                 let m_k = psi_vec[0];
@@ -537,20 +541,17 @@ fn add_state_constraints(
     }
 
     // Time Step Trust Region
-    // (dt - dt_bar)^2 <= eta_dt
+    // || dt - dt_bar || <= eta_dt
     model.add_constraint(constraint!(vars.eta_dt >= 0.0)); // Ensure slack is non-negative
-    model.add_constraint(constraint!(vars.dt - dt_bar <= vars.eta_dt));
-    model.add_constraint(constraint!(vars.dt - dt_bar >= -vars.eta_dt));
+    model.add_constraint(soc_constraint!(norm2(vars.dt - dt_bar) <= vars.eta_dt));
 
     // Trust Region Constraints
     // ||eta_T|| <= norm_eta_T
     let eta_T_vars: Vec<Variable> = vars.steps.iter().map(|s| s.eta_T).collect();
-    model.add_constraint(constraint!(vars.norm_eta_T >= 0.0));
     model.add_constraint(soc_constraint!(norm2_vec(eta_T_vars) <= vars.norm_eta_T));
 
     // Constraint for ||kappa_aR|| <= norm_kappa_aR
     let kappa_aR_vars: Vec<Variable> = vars.steps.iter().map(|s| s.kappa_aR).collect();
-    model.add_constraint(constraint!(vars.norm_kappa_aR >= 0.0));
     model.add_constraint(soc_constraint!(
         norm2_vec(kappa_aR_vars) <= vars.norm_kappa_aR
     ));

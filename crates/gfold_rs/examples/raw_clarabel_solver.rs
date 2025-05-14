@@ -315,7 +315,7 @@ fn main() {
     }
 
     // Acceleration dynamics (Equation 67)
-    for k in 0..N - 1 {
+    for k in 0..N {
         for i in 0..3 {
             // TODO!: Revisit this equation, my brain is fried
             // Original:

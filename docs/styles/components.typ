@@ -41,12 +41,6 @@
   ]
 }
 
-// Clean table styling
-#let clean-table = table.with(
-  fill: (_, row) => if row == 0 { rgb(249, 250, 251) } else { rgb(255, 255, 255) },
-  stroke: (x, y) => if y == 0 { (bottom: 1pt + rgb(220, 220, 220)) } else { (bottom: 0.5pt + rgb(230, 230, 230)) },
-  inset: 8pt,
-)
 
 // Figure styling for images
 #let clean-figure(caption, img) = figure(
