@@ -3,7 +3,6 @@
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use plotters::prelude::*;
 
 fn main() {
     // -------------------------------------------------------

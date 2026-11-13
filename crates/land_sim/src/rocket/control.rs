@@ -167,9 +167,10 @@ fn update_motor_system(
     mut query: Query<(&EngineControlState, &EngineSettings, &mut ImpulseJoint)>,
 ) {
     for (control, settings, mut joint) in query.iter_mut() {
-        let max_angle = settings.degrees_of_freedom.to_radians();
-        let pitch = (control.pitch).clamp(-max_angle, max_angle);
-        let yaw = (control.yaw).clamp(-max_angle, max_angle);
+        // `EngineControlState` angles are in degrees; the joint motor wants radians.
+        let max_angle = settings.degrees_of_freedom;
+        let pitch = control.pitch.clamp(-max_angle, max_angle).to_radians();
+        let yaw = control.yaw.clamp(-max_angle, max_angle).to_radians();
 
         joint.data.as_mut().set_motor_position(
             JointAxis::AngX,
@@ -183,26 +184,6 @@ fn update_motor_system(
             settings.motor_stiffness,
             settings.motor_damping,
         );
-    }
-}
-
-pub fn apply_thrust_system(
-    mut nozzles: Query<
-        (
-            &GlobalTransform,
-            &EngineControlState,
-            &EngineSettings,
-            &mut ExternalForce,
-        ),
-        With<RocketEngine>,
-    >,
-) {
-    for (nozzle_tf, control, settings, mut ext_force) in &mut nozzles {
-        let thrust_mag = control.thrust.clamp(0.0, settings.max_thrust);
-
-        let thrust_dir = nozzle_tf.compute_transform().rotation * Vec3::Y;
-
-        ext_force.force = thrust_dir * thrust_mag;
     }
 }
 
@@ -236,7 +217,6 @@ impl Plugin for RocketControlPlugin {
                 keyboard_input_system,
                 map_input_to_control_system,
                 update_motor_system,
-                apply_thrust_system,
                 debug_thrust_system,
             )
                 .chain(),

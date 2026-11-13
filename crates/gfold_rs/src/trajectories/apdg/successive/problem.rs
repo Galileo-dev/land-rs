@@ -8,8 +8,8 @@ use crate::trajectories::{
 };
 use autodiff::F;
 use good_lp::{
-    clarabel, constraint, soc_constraint, variable, variables, Constraint, Expression,
-    ProblemVariables, Solution, SolutionStatus, SolverModel, Variable,
+    clarabel, constraint, soc_constraint, variables, Expression, Solution, SolutionStatus,
+    SolverModel, Variable,
 };
 use nalgebra::{DVector, Vector3};
 use num_traits::real::Real;
@@ -57,7 +57,6 @@ pub struct TimeStepVariables {
 // Basically the global state
 struct DecisionVariables {
     steps: Vec<TimeStepVariables>,
-    N: usize,
     /// Time step duration [s]
     dt: Variable,
     /// Trust region slack variable for dt
@@ -112,7 +111,6 @@ impl DecisionVariables {
 
         DecisionVariables {
             steps,
-            N,
             dt: dt_var,
             eta_dt: eta_dt_var,
             norm_eta_T: norm_eta_T_var,
@@ -137,7 +135,7 @@ impl APDGProblem {
     /// Solve the problem
     pub fn solve(self) -> Result<APDGSolution, Error> {
         // Setup the problem inside solve
-        let (decision_vars, mut model) = setup_problem(&self.sim_params, &self.algo_params);
+        let (decision_vars, mut model) = setup_problem(&self.algo_params);
 
         // Add initial constraints
         add_initial_constraints(&mut model, &decision_vars, &self.sim_params);
@@ -169,12 +167,7 @@ impl APDGProblem {
         );
 
         // Add slack constraints
-        add_slack_constraints(
-            &mut model,
-            &decision_vars,
-            &self.sim_params,
-            &self.algo_params,
-        );
+        add_slack_constraints(&mut model, &decision_vars, &self.algo_params);
 
         // Run the solver
         let solution = model
@@ -244,10 +237,7 @@ impl APDGProblem {
 }
 
 /// Function to set up the problem with decision variables and objective function
-fn setup_problem(
-    params: &SimulationParams,
-    algo: &AlgorithmParams,
-) -> (DecisionVariables, impl SolverModel) {
+fn setup_problem(algo: &AlgorithmParams) -> (DecisionVariables, impl SolverModel) {
     let N = algo.N;
 
     let mut vars = variables!();
@@ -261,9 +251,7 @@ fn setup_problem(
     objective += algo.w_eta_T * decision_variables.norm_eta_T;
     objective += algo.w_kappa_aR * decision_variables.norm_kappa_aR;
 
-    let mut model = vars.minimise(objective).using(clarabel);
-
-    model.settings();
+    let model = vars.minimise(objective).using(clarabel);
 
     (decision_variables, model)
 }
@@ -367,20 +355,24 @@ fn add_linearised_dynamics_constraints(
         ));
 
         // Position dynamics
+        // Hermite-Simpson: r[k+1] = r[k] + dt/2 (v[k] + v[k+1]) + dt^2/12 (a[k] - a[k+1])
+        // (consistent with the trapezoidal velocity update)
         for i in 0..3 {
             let fr_func = |psi_vec: &DVector<F64>| -> F64 {
-                // psi_vec contains: [v[k][i], a[k][i], a[k+1][i], dt]
+                // psi_vec contains: [v[k][i], v[k+1][i], a[k][i], a[k+1][i], dt]
                 let vk = psi_vec[0];
-                let ak = psi_vec[1];
-                let ak1 = psi_vec[2];
-                let delta_t = psi_vec[3];
-                vk * delta_t + (1.0 / 3.0) * (ak + 0.5 * ak1) * delta_t.powi(2)
+                let vk1 = psi_vec[1];
+                let ak = psi_vec[2];
+                let ak1 = psi_vec[3];
+                let delta_t = psi_vec[4];
+                0.5 * (vk + vk1) * delta_t + (1.0 / 12.0) * (ak - ak1) * delta_t.powi(2)
             };
 
             let fr_taylor_expr = build_taylor_expression(
                 fr_func,
                 &[
                     (vars.steps[k].v[i], prev_step_k.v[i]),
+                    (vars.steps[k + 1].v[i], prev_step_k1.v[i]),
                     (vars.steps[k].a[i], prev_step_k.a[i]),
                     (vars.steps[k + 1].a[i], prev_step_k1.a[i]),
                     (vars.dt, prev_dt),
@@ -561,7 +553,6 @@ fn add_state_constraints(
 fn add_slack_constraints(
     model: &mut impl SolverModel,
     vars: &DecisionVariables,
-    params: &SimulationParams,
     settings: &AlgorithmParams,
 ) {
     for k in 0..settings.N {

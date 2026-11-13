@@ -1,4 +1,3 @@
-use good_lp::{ResolutionError, SolverModel};
 use thiserror::Error;
 
 /// Error codes returnable from APDG solver.

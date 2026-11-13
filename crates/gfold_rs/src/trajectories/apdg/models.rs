@@ -1,4 +1,4 @@
-use bon::{builder, Builder};
+use bon::Builder;
 use nalgebra::Vector3;
 
 /// Simulation parameters (Table 1).
@@ -138,7 +138,11 @@ pub struct AlgorithmParams {
     pub dt: f64,
 
     /// Number of successive convexification iterations
-    #[builder(default = 10)]
+    ///
+    /// The relaxation slack must be driven to ~0 for the plan to be physically
+    /// flyable; 10 iterations can converge to a fixed point where `aR` still
+    /// carries several m/s² of the dynamics (an unflyable plan).
+    #[builder(default = 30)]
     pub n_sc: usize,
 
     /// Weight on final mass in the cost function
@@ -149,12 +153,22 @@ pub struct AlgorithmParams {
     #[builder(default = 0.0001)]
     pub w_eta_dt: f64,
 
-    /// Weight on trust region ||eta_T||
-    #[builder(default = 0.0001)]
+    /// Weight on thrust trust region ||eta_T||
+    ///
+    /// This penalises thrust *deviation between SC iterations*. If it is too
+    /// high relative to `w_kappa_aR`, moving thrust toward feasibility costs
+    /// more than keeping the `aR` relaxation, and the solver converges to a
+    /// fixed point whose dynamics are carried by the relaxation (an unflyable
+    /// plan). Must stay well below `w_kappa_aR`; too low (1e-4) makes the
+    /// iterates oscillate instead of converging.
+    #[builder(default = 0.01)]
     pub w_eta_T: f64,
 
     /// Weight on angle-of-attack regularisation
-    #[builder(default = 100.0)]
+    ///
+    /// Penalises the `aR` dynamics-relaxation slack. Keep O(1000): the plan is
+    /// only flyable if the relaxation ends near zero.
+    #[builder(default = 1000.0)]
     pub w_kappa_aR: f64,
 
     /// Convergence tolerance for the SC loop (relative difference)

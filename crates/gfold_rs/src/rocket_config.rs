@@ -1,38 +1,54 @@
+//! Vehicle configuration for the landing problem.
+
 use bon::Builder;
 use nalgebra::Vector3;
 
 use crate::trajectories::SimulationParams;
 
+/// Physical vehicle parameters used to build the solver simulation settings.
 #[derive(Builder, Debug, Clone)]
 pub struct RocketConfig {
     // Mass
-    pub m_dry: f64,  // [kg]
-    pub m_fuel: f64, // [kg]
+    /// Dry mass [kg]
+    pub m_dry: f64,
+    /// Fuel mass (propellant) [kg]
+    pub m_fuel: f64,
 
     // Thrust
-    pub t_min_vac: f64, // [N]
-    pub t_max_vac: f64, // [N]
-    pub tdot_min: f64,  // [N s⁻¹]
-    pub tdot_max: f64,  // [N s⁻¹]
+    /// Minimum vacuum thrust [N]
+    pub t_min_vac: f64,
+    /// Maximum vacuum thrust [N]
+    pub t_max_vac: f64,
+    /// Minimum thrust derivative [N s^-1]
+    pub tdot_min: f64,
+    /// Maximum thrust derivative [N s^-1]
+    pub tdot_max: f64,
 
     // Thrust vector
-    pub i_sp: f64,     // [s]
-    pub a_nozzle: f64, // [m²]
+    /// Specific impulse [s]
+    pub i_sp: f64,
+    /// Nozzle exit area [m^2]
+    pub a_nozzle: f64,
 
     // Degrees of freedom
-    pub theta_max: f64, // [deg]
+    /// Maximum tilt angle [deg]
+    pub theta_max: f64,
 
     // Drag
-    pub s_d: f64, // [m²]
-    pub c_d: f64, // [-]
+    /// Reference area for drag [m^2]
+    pub s_d: f64,
+    /// Drag coefficient [-]
+    pub c_d: f64,
 }
 
 impl RocketConfig {
+    /// Initial total mass (dry + fuel) [kg]
     #[inline]
     pub fn m_0(&self) -> f64 {
         self.m_dry + self.m_fuel
     }
 
+    /// Build the solver simulation parameters for the given initial state.
     pub fn to_sim_params(&self, r0: Vector3<f64>, v0: Vector3<f64>) -> SimulationParams {
         SimulationParams::builder()
             .r0(r0)

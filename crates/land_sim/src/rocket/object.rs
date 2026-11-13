@@ -3,8 +3,21 @@ use gfold_rs::rocket_config::RocketConfig as GfoldRocketConfig;
 
 use crate::prelude::*;
 
+/// Sim-side rocket configuration.
+///
+/// `.0` is the solver configuration, `.1` is the touchdown offset: the
+/// distance from the body centre down to the engine bell bottom, i.e.
+/// `engine_height + body_height / 2`.
 #[derive(Component, Debug, Clone)]
-pub struct RocketConfig(pub GfoldRocketConfig);
+pub struct RocketConfig(pub GfoldRocketConfig, pub f64);
+
+impl RocketConfig {
+    /// Distance from the body centre down to the engine bell bottom [m].
+    #[inline]
+    pub fn touchdown_offset(&self) -> f64 {
+        self.1
+    }
+}
 
 #[derive(Component, Default, Debug, Reflect)]
 #[require(Name, RocketBody)]
@@ -61,7 +74,12 @@ pub struct RocketSettings {
 }
 
 impl RocketSettings {
-    pub fn spawn(self, commands: &mut Commands) -> Entity {
+    pub fn spawn(
+        self,
+        commands: &mut Commands,
+        meshes: &mut Assets<Mesh>,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Entity {
         // Unpack the settings
         let RocketSettings {
             name,
@@ -91,7 +109,38 @@ impl RocketSettings {
             disable_sleeping,
         } = self;
 
-        initial_transform.translation.y += engine_height + body_height / 2.0;
+        let touchdown_offset = engine_height + body_height / 2.0;
+        initial_transform.translation.y += touchdown_offset;
+
+        // --- Visuals: hull, legs, RCS, engine ----------------------------
+        let body_mesh = meshes.add(Cylinder::new(body_radius, body_height / 2.0));
+        let body_material = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.85, 0.85, 0.88),
+            reflectance: 0.4,
+            ..default()
+        });
+        let engine_mesh = meshes.add(Cone {
+            radius: engine_radius,
+            height: engine_height,
+        });
+        let engine_material = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.12, 0.12, 0.14),
+            metallic: 0.6,
+            ..default()
+        });
+        let strut_len = 11.5_f32;
+        let strut_mesh = meshes.add(Cuboid::new(0.6, strut_len, 0.6));
+        let foot_mesh = meshes.add(Cylinder::new(1.2, 0.3));
+        let leg_material = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.2, 0.2, 0.22),
+            ..default()
+        });
+        let rcs_mesh = meshes.add(Cuboid::new(0.7, 0.7, 0.7));
+        let rcs_material = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.85, 0.45, 0.1),
+            emissive: LinearRgba::rgb(0.5, 0.2, 0.05),
+            ..default()
+        });
 
         let gfold_config_data = GfoldRocketConfig {
             m_dry: body_dry_mass.into(),
@@ -106,7 +155,7 @@ impl RocketSettings {
             s_d: drag_s_d.into(),
             c_d: drag_c_d.into(),
         };
-        let rocket_config_component = RocketConfig(gfold_config_data);
+        let rocket_config_component = RocketConfig(gfold_config_data, touchdown_offset as f64);
 
         // Body
         let body_id = commands
@@ -120,9 +169,68 @@ impl RocketSettings {
                 Collider::cylinder(body_height / 2.0, body_radius),
                 ColliderMassProperties::Mass(body_dry_mass),
                 AdditionalMassProperties::Mass(body_fuel_mass),
+                // Filled in by Rapier once the body + colliders are registered.
+                ReadMassProperties::default(),
                 rocket_config_component,
                 ExternalForce::default(),
             ))
+            .with_children(|body| {
+                // Hull mesh (the physics wireframes alone are hard to read).
+                body.spawn((
+                    Mesh3d(body_mesh),
+                    MeshMaterial3d(body_material),
+                    Transform::default(),
+                ));
+
+                // Four landing legs, folded against the hull.
+                for i in 0..4 {
+                    let theta = i as f32 * std::f32::consts::FRAC_PI_2;
+                    let (sin, cos) = theta.sin_cos();
+                    let pivot = Vec3::new(cos * (body_radius - 0.4), -body_height / 2.0 + 0.5, sin * (body_radius - 0.4));
+                    // Tangential axis: +rotation swings the leg outward.
+                    let axis = Vec3::new(-sin, 0.0, cos);
+
+                    body.spawn((
+                        Name::new(format!("Landing Leg {i}")),
+                        rocket::LandingLeg {
+                            axis,
+                            angle: rocket::FOLDED_ANGLE,
+                        },
+                        Transform::from_translation(pivot)
+                            .with_rotation(Quat::from_axis_angle(axis, rocket::FOLDED_ANGLE)),
+                        Visibility::default(),
+                    ))
+                    .with_children(|leg| {
+                        leg.spawn((
+                            Mesh3d(strut_mesh.clone()),
+                            MeshMaterial3d(leg_material.clone()),
+                            Transform::from_xyz(0.0, -strut_len / 2.0, 0.0),
+                        ));
+                        leg.spawn((
+                            Mesh3d(foot_mesh.clone()),
+                            MeshMaterial3d(leg_material.clone()),
+                            Transform::from_xyz(0.0, -strut_len - 0.3, 0.0),
+                        ));
+                    });
+                }
+
+                // RCS pods near the top of the hull.
+                for (i, (x, z)) in [(3.6, 0.0), (-3.6, 0.0), (0.0, 3.6), (0.0, -3.6)]
+                    .into_iter()
+                    .enumerate()
+                {
+                    body.spawn((
+                        Name::new(format!("RCS Pod {i}")),
+                        rocket::RcsPod {
+                            local_pos: Vec3::new(x, body_height / 2.0 - 4.0, z),
+                        },
+                        Mesh3d(rcs_mesh.clone()),
+                        MeshMaterial3d(rcs_material.clone()),
+                        Transform::from_xyz(x, body_height / 2.0 - 4.0, z),
+                        Visibility::default(),
+                    ));
+                }
+            })
             .id();
 
         // Engine
@@ -150,8 +258,14 @@ impl RocketSettings {
                 RigidBody::Dynamic,
                 Collider::cone(engine_height / 2.0, engine_radius),
                 ColliderMassProperties::Mass(engine_mass),
-                ExternalForce::default(),
             ))
+            .with_children(|engine| {
+                engine.spawn((
+                    Mesh3d(engine_mesh),
+                    MeshMaterial3d(engine_material),
+                    Transform::default(),
+                ));
+            })
             .id();
 
         // ----- Spawn engine nozzle -----
@@ -194,12 +308,22 @@ impl RocketSettings {
     }
 }
 
-pub fn spawn_rocket(mut commands: Commands) {
+pub fn spawn_rocket(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     // U-E-N -> E-U-N
+    //
+    // The initial condition sets the difficulty of the landing problem: the
+    // east offset and the northward velocity are the lateral journeys the plan
+    // must fly within the glide-slope and the tilt limit. This is a
+    // "coming in hot" entry: ~95 m/s of descent from 900 m, braked entirely by
+    // the hoverslam burn.
     let _rocket_root = RocketSettings::builder()
         .name("Falcon 9".into())
-        .initial_transform(Transform::from_xyz(500.0, 500.0, 0.0))
-        .initial_velocity(Velocity::linear(Vec3::new(0.0, -50.0, 50.0)))
+        .initial_transform(Transform::from_xyz(350.0, 900.0, 0.0))
+        .initial_velocity(Velocity::linear(Vec3::new(0.0, -95.0, 40.0)))
         .body_height(41.2)
         .body_radius(3.7)
         .body_dry_mass(10_000.0)
@@ -220,5 +344,5 @@ pub fn spawn_rocket(mut commands: Commands) {
         .drag_s_d(10.0)
         .drag_c_d(1.0)
         .build()
-        .spawn(&mut commands);
+        .spawn(&mut commands, &mut meshes, &mut materials);
 }

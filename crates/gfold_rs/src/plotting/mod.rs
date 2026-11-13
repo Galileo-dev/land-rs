@@ -1,3 +1,5 @@
+//! Plotting helpers for trajectories and convergence histories.
+
 use bon::builder;
 use nalgebra::Vector3;
 use plotters::coord::types::RangedCoordf64;
@@ -10,6 +12,7 @@ const BASE_WIDTH: u32 = 1024 * 3;
 const ASPECT_RATIO_STANDARD: f64 = 4.0 / 3.0;
 const ASPECT_RATIO_WIDE: f64 = 8.0 / 3.0;
 
+/// Raw data extraction helpers for the plotting code.
 pub mod data_extraction;
 
 /// Scale a vector of values by a factor
@@ -17,12 +20,13 @@ fn scale(values: &[f64], factor: f64) -> Vec<f64> {
     values.iter().map(|v| v * factor).collect()
 }
 
+/// Plot the 3-D flight trajectory to a PNG file.
 pub fn plot_trajectory_3d(
     output: &str,
     title: &str,
     solution: &APDGSolution,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (time, pos_u, pos_e, pos_n, thrust) = data_extraction::get_trajectory_3d_data(solution);
+    let (_time, pos_u, pos_e, pos_n, thrust) = data_extraction::get_trajectory_3d_data(solution);
 
     let aspect_ratio = ASPECT_RATIO_STANDARD;
     let width = BASE_WIDTH;
@@ -75,6 +79,7 @@ pub fn plot_trajectory_3d(
     Ok(())
 }
 
+/// Plot position and velocity against time to a PNG file.
 pub fn plot_position_velocity_time(
     output: &str,
     solution: &APDGSolution,
@@ -149,12 +154,13 @@ pub fn plot_position_velocity_time(
     Ok(())
 }
 
+/// Plot thrust magnitude, thrust rate, tilt and azimuth against time.
 pub fn plot_thrust_time(
     output: &str,
     solution: &APDGSolution,
     sim: &SimulationParams,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (time, t_mag, t_rate, tilt, az, mass) =
+    let (time, t_mag, t_rate, tilt, az, _mass) =
         data_extraction::get_thrust_mass_data(solution, sim);
 
     let aspect_ratio = ASPECT_RATIO_STANDARD;
@@ -227,12 +233,13 @@ pub fn plot_thrust_time(
     Ok(())
 }
 
+/// Plot vehicle mass against time.
 pub fn plot_mass_time(
     output: &str,
     solution: &APDGSolution,
     sim: &SimulationParams,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (time, t_mag, t_rate, tilt, az, mass) =
+    let (time, _t_mag, _t_rate, _tilt, _az, mass) =
         data_extraction::get_thrust_mass_data(solution, sim);
 
     let aspect_ratio = ASPECT_RATIO_WIDE;
@@ -271,16 +278,16 @@ fn min_max(v: &[f64]) -> Option<(f64, f64)> {
     })
 }
 
-fn build_chart<DB: DrawingBackend>(
-    area: &DrawingArea<DB, Shift>,
-) -> Result<ChartBuilder<DB>, Box<dyn std::error::Error>> {
-    let mut chart_builder = ChartBuilder::on(area);
+fn build_chart<'a, DB: DrawingBackend>(
+    area: &'a DrawingArea<DB, Shift>,
+) -> Result<ChartBuilder<'a, 'a, DB>, Box<dyn std::error::Error>> {
+    let chart_builder = ChartBuilder::on(area);
 
     Ok(chart_builder)
 }
 
 #[builder]
-fn single_time_series<DB: DrawingBackend, 'a>(
+fn single_time_series<'a, DB: DrawingBackend>(
     mut chart_builder: ChartBuilder<'a, '_, DB>,
     t: &[f64],
     y: &[f64],
@@ -398,21 +405,14 @@ where
     Ok(())
 }
 
-fn present_chart<'a, DB: DrawingBackend + 'a>(
-    chart: ChartContext<'a, DB, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
-) -> Result<(), Box<dyn std::error::Error>>
-where
-    DB::ErrorType: std::error::Error + 'static,
-{
-    Ok(())
-}
 
+/// Plot the successive-convexification convergence history.
 pub fn plot_convergence(
     output: &str,
     hist: &ConvergenceHistory,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if hist.pos.is_empty() {
-        eprintln!("No convergence data to plot");
+        log::warn!("No convergence data to plot");
         return Ok(());
     }
 
@@ -460,12 +460,13 @@ pub fn plot_convergence(
     Ok(())
 }
 
+/// Plot convergence of the acceleration relaxation term.
 pub fn plot_relaxation_convergence(
     output: &str,
     hist: &ConvergenceHistory,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if hist.pos.is_empty() {
-        eprintln!("No convergence data to plot");
+        log::warn!("No convergence data to plot");
         return Ok(());
     }
 
@@ -475,13 +476,12 @@ pub fn plot_relaxation_convergence(
 
     let root = BitMapBackend::new(output, (width, height)).into_drawing_area();
     root.fill(&WHITE)?;
-    const LOG_EPSILON: f64 = 1e-10; // Prevent a log10(0) error
 
     // Log Max ||aR||
-    let max_aR = hist.aR.iter().fold(0.0, |max, &v| v.abs().max(max));
+    let max_ar = hist.aR.iter().fold(0.0, |max, &v| v.abs().max(max));
 
     let iters: Vec<f64> = (1..=hist.len()).map(|i| i as f64).collect();
-    let (min, max) = (0.0, max_aR);
+    let (min, max) = (0.0, max_ar);
 
     single_time_series()
         .chart_builder(build_chart(&root)?)

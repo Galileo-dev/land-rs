@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clarabel = { workspace = true }
 thiserror = { workspace = true }
+log = { workspace = true }
 bon = { workspace = true }
 nalgebra = { workspace = true }
-uom = { workspace = true }
 plotters = { workspace = true }
 good_lp = { workspace = true }
 autodiff = { workspace = true }
@@ -16,6 +15,8 @@ num-traits = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+clarabel = { workspace = true }
+nalgebra = { workspace = true }
 
 # ------------------------------
 # enable latex in docs 

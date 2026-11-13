@@ -1,6 +1,7 @@
 use crate::trajectories::{APDGSolution, SimulationParams};
 use nalgebra::Vector3;
 
+/// Time, up/east/north position and thrust vectors for each step.
 pub fn get_trajectory_3d_data(
     solution: &APDGSolution,
 ) -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<Vector3<f64>>) {
@@ -12,6 +13,7 @@ pub fn get_trajectory_3d_data(
     (time, pos_u, pos_e, pos_n, thrust_vectors)
 }
 
+/// Time, position and velocity components for each step.
 pub fn get_pos_vel_time_data(
     solution: &APDGSolution,
 ) -> (
@@ -46,6 +48,7 @@ fn calculate_angles(thrust_vector: &Vector3<f64>, up_vector: &Vector3<f64>) -> (
     (tilt_angle_deg, azimuth_deg)
 }
 
+/// Time, thrust magnitude, thrust rate, tilt, azimuth and mass for each step.
 pub fn get_thrust_mass_data(
     solution: &APDGSolution,
     params: &SimulationParams,

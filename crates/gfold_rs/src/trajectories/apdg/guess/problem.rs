@@ -1,6 +1,6 @@
 use good_lp::{
-    clarabel, constraint, soc_constraint, variable, variables, Constraint, Expression,
-    ProblemVariables, Solution, SolutionStatus, SolverModel, Variable,
+    clarabel, constraint, soc_constraint, variables, Expression, Solution, SolutionStatus,
+    SolverModel, Variable,
 };
 use nalgebra::Vector3;
 
@@ -57,7 +57,6 @@ pub struct TimeStepVariables {
 // Basically the global state
 struct DecisionVariables {
     steps: Vec<TimeStepVariables>,
-    N: usize,
 }
 
 impl DecisionVariables {
@@ -93,7 +92,7 @@ impl DecisionVariables {
                 kappa_aR: kappa_aR_k,
             });
         }
-        DecisionVariables { steps, N }
+        DecisionVariables { steps }
     }
 }
 
@@ -108,7 +107,7 @@ impl APDGProblem {
     /// Solve the problem
     pub fn solve(self) -> Result<APDGSolution, Error> {
         // Setup the problem inside solve
-        let (decision_vars, mut model) = setup_problem(&self.sim_params, &self.algo_params);
+        let (decision_vars, mut model) = setup_problem(&self.algo_params);
 
         // Add initial constraints
         add_initial_constraints(&mut model, &decision_vars, &self.sim_params);
@@ -143,12 +142,7 @@ impl APDGProblem {
         );
 
         // Add slack constraints
-        add_slack_constraints(
-            &mut model,
-            &decision_vars,
-            &self.sim_params,
-            &self.algo_params,
-        );
+        add_slack_constraints(&mut model, &decision_vars, &self.algo_params);
 
         // Run the solver
         let solution = model
@@ -216,10 +210,7 @@ impl APDGProblem {
 }
 
 /// Function to set up the problem with decision variables and objective function
-fn setup_problem(
-    params: &SimulationParams,
-    algo: &AlgorithmParams,
-) -> (DecisionVariables, impl SolverModel) {
+fn setup_problem(algo: &AlgorithmParams) -> (DecisionVariables, impl SolverModel) {
     let N = algo.N;
 
     let mut vars = variables!();
@@ -245,8 +236,6 @@ fn setup_problem(
     model.add_constraint(soc_constraint!(
         norm2_vec(kappa_aR_vars) <= norm_kappa_aR_var
     ));
-
-    model.settings();
 
     (decision_variables, model)
 }
@@ -358,15 +347,16 @@ fn add_dynamics_constraints(
         ));
 
         // Position dynamics
-        // r[k+1] = r[k] + v[k] * dt + 1/3 * (a[k] + 1/2*a[k+1]) * dt^2
+        // Hermite-Simpson: r[k+1] = r[k] + dt/2 (v[k] + v[k+1]) + dt^2/12 (a[k] - a[k+1])
+        // (consistent with the trapezoidal velocity update)
         for i in 0..3 {
             model.add_constraint(constraint!(
                 vars.steps[k + 1].r[i]
                     == vars.steps[k].r[i]
-                        + vars.steps[k].v[i] * settings.dt
-                        + (1.0 / 3.0)
-                            * (vars.steps[k].a[i] + 0.5 * vars.steps[k + 1].a[i])
-                            * settings.dt.powi(2)
+                        + (0.5 * (vars.steps[k].v[i] + vars.steps[k + 1].v[i]) * settings.dt)
+                        + ((1.0 / 12.0)
+                            * (vars.steps[k].a[i] - vars.steps[k + 1].a[i])
+                            * settings.dt.powi(2))
             ));
         }
 
@@ -383,28 +373,22 @@ fn add_dynamics_constraints(
 
     // Acceleration dynamics
     //a[k] = 1/mu[k] * (T[k] - 1/2 * rho * S_D * C_D * s[k] * v[k]) + a_R[k] + g
+    // `mu` and `s` are built with one entry per step (0..N), so the indices are in bounds.
     for k in 0..N {
-        if k < mu.len() && k < s.len() {
-            for i in 0..3 {
-                model.add_constraint(constraint!(
-                    vars.steps[k].a[i]
-                        == 1.0 / mu[k]
-                            * (vars.steps[k].t[i]
-                                - 0.5
-                                    * params.rho
-                                    * params.s_d
-                                    * params.c_d
-                                    * s[k]
-                                    * vars.steps[k].v[i])
-                            + vars.steps[k].aR[i]
-                            + params.g_vec[i]
-                ));
-            }
-        } else {
-            eprintln!(
-                "Warning: Index {} out of bounds for mu/s arrays in dynamics constraints.",
-                k
-            );
+        for i in 0..3 {
+            model.add_constraint(constraint!(
+                vars.steps[k].a[i]
+                    == 1.0 / mu[k]
+                        * (vars.steps[k].t[i]
+                            - 0.5
+                                * params.rho
+                                * params.s_d
+                                * params.c_d
+                                * s[k]
+                                * vars.steps[k].v[i])
+                        + vars.steps[k].aR[i]
+                        + params.g_vec[i]
+            ));
         }
     }
 }
@@ -483,7 +467,6 @@ fn add_state_constraints(
 fn add_slack_constraints(
     model: &mut impl SolverModel,
     vars: &DecisionVariables,
-    params: &SimulationParams,
     settings: &AlgorithmParams,
 ) {
     for k in 0..settings.N {

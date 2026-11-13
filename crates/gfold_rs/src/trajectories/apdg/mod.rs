@@ -1,18 +1,13 @@
 #![allow(non_snake_case)]
 use crate::trajectories::ConvergenceHistory;
 use bon::Builder;
-use clarabel::algebra::*;
-use clarabel::solver::traits::Solution;
-use clarabel::solver::*;
-use good_lp::solvers::clarabel::ClarabelProblem;
 use models::{AlgorithmParams, SimulationParams};
 use nalgebra::Vector3;
-use thiserror::Error;
 
 mod error;
 use error::Error;
 mod guess;
-mod sucessive;
+mod successive;
 
 // Settings
 pub mod models;
@@ -84,6 +79,7 @@ impl APDGSolution {
     }
 }
 
+/// Solver for the APDG successor-corrector landing problem.
 #[derive(Debug, Clone, Default)]
 pub struct APDGProblemSolver {}
 
@@ -98,16 +94,16 @@ impl APDGProblemSolver {
 }
 
 fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Error> {
-    println!("Settings: {settings:?}");
+    log::debug!("Settings: {settings:?}");
 
     // --- Step 1: Initial Guess (Problem 4) ---
-    println!("Solving Initial Guess Problem...");
+    log::info!("Solving Initial Guess Problem...");
     let initial_problem = guess::problem::APDGProblem::new(
         settings.simulation_settings().clone(),
         settings.solver_settings().clone(),
     );
     let mut current_solution = initial_problem.solve()?;
-    println!("Initial Guess Solved.");
+    log::info!("Initial Guess Solved.");
 
     let n_sc = settings.solver_settings().n_sc;
 
@@ -118,13 +114,13 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
     let mut aR_log: Vec<f64> = Vec::with_capacity(n_sc);
     const LOG_EPSILON: f64 = 1e-10; // Prevent a log10(0) error
     for i in 0..n_sc {
-        println!("Starting Iteration {}...", i + 1);
+        log::info!("Starting Iteration {}...", i + 1);
 
         // Use current solution as the previous trajectory
         let prev_trajectory: APDGSolution = current_solution;
 
         // Setup and solve the successive problem
-        let successive_problem = sucessive::problem::APDGProblem::new(
+        let successive_problem = successive::problem::APDGProblem::new(
             settings.simulation_settings().clone(),
             settings.solver_settings().clone(),
             prev_trajectory.clone(),
@@ -132,20 +128,18 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
 
         match successive_problem.solve() {
             Ok(new_solution) => {
-                println!("Iteration {} Solved.", i + 1);
+                log::info!("Iteration {} Solved.", i + 1);
 
                 // Check for convergence
                 let solution_differences =
                     calculate_solution_differences(&prev_trajectory, &new_solution);
-                println!(
-                    "Iteration {}: Max Absolute Differences - Pos: {:.6e}, Vel: {:.6e}, Mass: {:.6e}, Thrust: {:.6e}, Max Relative: {:.6e}",
-                    i + 1,
-                    solution_differences.abs_pos,
-                    solution_differences.abs_vel,
-                    solution_differences.abs_mass,
-                    solution_differences.abs_thrust,
-                    solution_differences.max_relative
-                );
+                log::info!("Iteration {}: Max Absolute Differences - Pos: {:.6e}, Vel: {:.6e}, Mass: {:.6e}, Thrust: {:.6e}, Max Relative: {:.6e}",
+                i + 1,
+                solution_differences.abs_pos,
+                solution_differences.abs_vel,
+                solution_differences.abs_mass,
+                solution_differences.abs_thrust,
+                solution_differences.max_relative);
 
                 // Store log10 of differences for plotting later
                 pos_log.push((solution_differences.abs_pos + LOG_EPSILON).log10());
@@ -156,16 +150,14 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
                 current_solution = new_solution;
 
                 if solution_differences.max_relative < settings.solver_settings().sc_tolerance {
-                    println!(
-                        "Converged after {} iterations (Tolerance: {:.1e}).",
-                        i + 1,
-                        settings.solver_settings().sc_tolerance
-                    );
+                    log::info!("Converged after {} iterations (Tolerance: {:.1e}).",
+                    i + 1,
+                    settings.solver_settings().sc_tolerance);
                     break;
                 }
 
                 if i == n_sc - 1 {
-                    println!("Reached maximum iterations ({}).", n_sc);
+                    log::info!("Reached maximum iterations ({}).", n_sc);
                 }
             }
             Err(e) => {
@@ -174,23 +166,17 @@ fn _solve(settings: &Settings) -> Result<(APDGSolution, ConvergenceHistory), Err
         }
     }
 
-    println!("Successive Convexification Finished.");
-    println!("\nConvergence History (Log10 Max Differences):");
-    println!(
-        "Iteration | Pos Diff (log10) | Vel Diff (log10) | Thrust Diff (log10) | aR Diff (log10)"
-    );
-    println!(
-        "----------|------------------|------------------|---------------------|------------------|"
-    );
+    log::info!("Successive Convexification Finished.");
+    log::info!("\nConvergence History (Log10 Max Differences):");
+    log::info!("Iteration | Pos Diff (log10) | Vel Diff (log10) | Thrust Diff (log10) | aR Diff (log10)");
+    log::info!("----------|------------------|------------------|---------------------|------------------|");
     for i in 0..pos_log.len() {
-        println!(
-            "{:>9} | {:>16.6e} | {:>16.6e} | {:>19.6e} | {:>16.6e}",
-            i + 1,
-            pos_log[i],
-            vel_log[i],
-            thrust_log[i],
-            aR_log[i]
-        );
+        log::info!("{:>9} | {:>16.6e} | {:>16.6e} | {:>19.6e} | {:>16.6e}",
+        i + 1,
+        pos_log[i],
+        vel_log[i],
+        thrust_log[i],
+        aR_log[i]);
     }
 
     Ok((
@@ -212,11 +198,6 @@ struct SolutionDifferences {
     abs_mass: f64,     // max_k |m2[k] - m1[k]| for all k
     abs_thrust: f64,   // max_k ||t2[k] - t1[k]|| for all k
     abs_aR: f64,       // max_k ||aR2[k] - aR1[k]|| for all k
-    rel_pos: f64,      // max_k ||r2[k] - r1[k]|| / (||r1[k]|| + epsilon) for all k
-    rel_vel: f64,      // max_k ||v2[k] - v1[k]|| / (||v1[k]|| + epsilon) for all k
-    rel_mass: f64,     // max_k |m2[k] - m1[k]| / (|m1[k]| + epsilon) for all k
-    rel_thrust: f64,   // max_k ||t2[k] - t1[k]|| / (||t1[k]|| + epsilon) for all k
-    rel_aR: f64,       // max_k ||aR2[k] - aR1[k]|| / (||aR1[k]|| + epsilon) for all k
     max_relative: f64, // Maximum of all relative (rel_pos, rel_vel, rel_mass, rel_thrust, rel_aR).
 }
 
@@ -264,7 +245,6 @@ fn calculate_solution_differences(sol1: &APDGSolution, sol2: &APDGSolution) -> S
         let v1_norm = s1.v.norm();
         let m1_abs = s1.m.abs();
         let t1_norm = s1.t.norm();
-        let aR1_norm = s1.aR.norm();
 
         let rel_pos_diff = abs_pos_diff / (r1_norm + epsilon);
         max_rel_pos = max_rel_pos.max(rel_pos_diff);
@@ -302,11 +282,6 @@ fn calculate_solution_differences(sol1: &APDGSolution, sol2: &APDGSolution) -> S
         abs_mass: max_abs_mass,
         abs_thrust: max_abs_thrust,
         abs_aR: max_abs_aR,
-        rel_pos: max_rel_pos,
-        rel_vel: max_rel_vel,
-        rel_mass: max_rel_mass,
-        rel_thrust: max_rel_thrust,
-        rel_aR: max_rel_aR,
         max_relative: overall_max_relative,
     }
 }

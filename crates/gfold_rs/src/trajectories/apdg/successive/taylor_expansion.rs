@@ -1,11 +1,6 @@
-use crate::trajectories::apdg::models::SimulationParams;
-use crate::trajectories::APDGSolutionTimeStep;
 use autodiff::F;
-use good_lp::constraint;
-use good_lp::variable;
 use good_lp::{Expression, Variable};
-use nalgebra::{DVector, Vector3};
-use num_traits::Pow;
+use nalgebra::DVector;
 pub type F64 = F<f64, f64>;
 
 /// Builds a good_lp::Expression representing the first-order Taylor expansion
@@ -52,9 +47,9 @@ pub(super) fn build_taylor_expression<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use good_lp::{variables, Expression, IntoAffineExpression, Variable};
+    use good_lp::{variable, variables, IntoAffineExpression, Variable};
     use nalgebra::DVector;
-    use num_traits::{real::Real, Pow};
+    use num_traits::real::Real;
     use std::collections::HashMap;
 
     #[test]
